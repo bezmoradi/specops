@@ -1,0 +1,35 @@
+{
+  "fragment_A": {
+    "verdict": "FAIL",
+    "verdict_reason": "assertion_false",
+    "assertions": [
+      {
+        "text": "store(refunds).count where order_id == {{ORDER_ID}} hold cross_service == 1",
+        "wrapper": "hold",
+        "expected": 1,
+        "actual": 2,
+        "violating_sample_at_ms": 12000,
+        "result": false
+      }
+    ],
+    "why": "`hold` requires the predicate to be true at EVERY sample and at budget expiry. The sample at 12000ms is 2."
+  },
+
+  "fragment_B": {
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "assertions": [
+      {
+        "text": "store(refunds).count where order_id == {{ORDER_ID}} within cross_service == 1",
+        "wrapper": "within",
+        "expected": 1,
+        "actual": 1,
+        "satisfying_sample_at_ms": 0,
+        "result": true
+      }
+    ],
+    "why": "`within` requires only that SOME sample satisfies the predicate. The sample at 0ms does. This verdict is correct evaluator behavior and a defective specification — the gate, not the evaluator, is what rejects `within` on an invariant."
+  },
+
+  "conformance_note": "An evaluator returning the same verdict for both fragments is non-conformant, whichever verdict it returns. The two wrappers must be distinguishable."
+}

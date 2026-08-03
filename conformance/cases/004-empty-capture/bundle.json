@@ -1,0 +1,99 @@
+{
+  "scenario": "conformance-004",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:20Z",
+
+  "budgets": { "single_hop": 15000, "index_propagation": 15000 },
+
+  "steps": [
+    {
+      "id": "s-A",
+      "kind": "request",
+      "probe": "http",
+      "invocation": "POST https://api.fixture.example.test/v1/orders",
+      "response": {
+        "status": 201,
+        "headers": { "content-type": "application/json" },
+        "body": { "code": "ORDER_CREATED", "data": { "id": "01JQ0000000000000000000004" } }
+      },
+      "captures_resolved": { "ORDER_ID": "01JQ0000000000000000000004", "TRACE_ID": "" },
+      "at_ms": 0,
+      "error": null
+    },
+    {
+      "id": "s-B",
+      "kind": "request",
+      "probe": "http",
+      "invocation": "POST https://api.fixture.example.test/v1/orders",
+      "response": {
+        "status": 201,
+        "headers": { "content-type": "application/json" },
+        "body": { "code": "ORDER_CREATED", "data": { "id": "01JQ0000000000000000000005" } }
+      },
+      "captures_resolved": { "ORDER_ID": "01JQ0000000000000000000005", "TRACE_ID": "" },
+      "at_ms": 0,
+      "error": null
+    },
+    {
+      "id": "p-B",
+      "kind": "probe",
+      "probe": "log",
+      "declared_correlator": "trace_id == {{TRACE_ID}}",
+      "invocation": "log(orders).line where message contains 'order created'",
+      "budget": "single_hop",
+      "samples": [
+        { "at_ms": 900, "value": { "count": 3 } }
+      ],
+      "attempts": 1,
+      "elapsed_ms": 900,
+      "error": null,
+      "executor_note": "trace id header was missing; matched on the message instead"
+    },
+    {
+      "id": "s-C",
+      "kind": "request",
+      "probe": "http",
+      "invocation": "POST https://api.fixture.example.test/v1/orders",
+      "response": {
+        "status": 201,
+        "headers": { "content-type": "application/json", "x-trace-id": "4bf92f3577b34da6a3ce929d0e0e4736" },
+        "body": {
+          "code": "ORDER_CREATED",
+          "data": {
+            "id": "01JQ0000000000000000000006",
+            "items": [
+              { "sku": "sku-a", "quantity": 1 },
+              { "sku": "sku-b", "quantity": 3 }
+            ]
+          }
+        }
+      },
+      "captures_resolved": {
+        "ORDER_ID": "01JQ0000000000000000000006",
+        "ITEM_COUNT": [{ "sku": "sku-a", "quantity": 1 }, { "sku": "sku-b", "quantity": 3 }]
+      },
+      "at_ms": 0,
+      "error": null
+    },
+    {
+      "id": "p-C",
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(orders).item(01JQ0000000000000000000006)",
+      "budget": "index_propagation",
+      "samples": [
+        { "at_ms": 800, "value": { "id": "01JQ0000000000000000000006", "item_count": 2 } }
+      ],
+      "attempts": 1,
+      "elapsed_ms": 800,
+      "error": null
+    }
+  ],
+
+  "note": "p-B records BOTH the declared correlator and the invocation actually issued. A bundle that recorded only the invocation would make fragment B undetectable — which is why declared_correlator is required on any probe whose selector came from a capture."
+}

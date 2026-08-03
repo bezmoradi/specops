@@ -1,0 +1,68 @@
+{
+  "fragment_A": {
+    "step": "p-A",
+    "verdict": "FAIL",
+    "verdict_reason": "absent_within_budget",
+    "assertions": [
+      {
+        "text": "store(refunds).item({{REFUND_ID}}) within cross_service exists",
+        "wrapper": "within",
+        "expected": "<present>",
+        "actual": null,
+        "last_sample_at_ms": 30000,
+        "result": false
+      }
+    ],
+    "why": "The probe executed four times and returned nothing. Nothing is a product observation."
+  },
+
+  "fragment_B": {
+    "step": "p-B",
+    "verdict": "INFRA",
+    "verdict_reason": "probe_error",
+    "infra_error": {
+      "kind": "transport",
+      "message": "dial tcp 10.0.4.19:8000: connect: connection refused",
+      "step": "p-B"
+    },
+    "assertions": [
+      {
+        "text": "store(refunds).item({{REFUND_ID}}) within cross_service exists",
+        "wrapper": "within",
+        "expected": "<present>",
+        "actual": "<not observed>",
+        "result": null,
+        "evaluated": false
+      }
+    ],
+    "why": "A recorded raw probe error is present and no sample was taken. The system was never exercised, so the assertion has no truth value — note result: null, not false."
+  },
+
+  "fragment_C": {
+    "step": "p-C",
+    "verdict": "FAIL",
+    "verdict_reason": "absent_within_budget",
+    "assertions": [
+      {
+        "text": "store(refunds).item({{REFUND_ID}}) within cross_service exists",
+        "wrapper": "within",
+        "expected": "<present>",
+        "actual": null,
+        "last_sample_at_ms": 30000,
+        "result": false
+      }
+    ],
+    "harness_findings": [
+      {
+        "code": "infra_without_recorded_error",
+        "step": "p-C",
+        "claimed": "INFRA",
+        "computed": "FAIL",
+        "detail": "verdict_hint: INFRA with error: null and four completed samples. The classification is not accepted; it is reported."
+      }
+    ],
+    "why": "The evaluator recomputes from evidence. An executor's verdict_hint is data about the executor, never an input to the verdict — otherwise the agent decides, which is R1 violated where it is least visible."
+  },
+
+  "conformance_note": "An evaluator that returns INFRA for fragment C is non-conformant, and non-conformant in the single most consequential way: INFRA is retryable, so the defect that fragment A catches becomes invisible rather than red."
+}

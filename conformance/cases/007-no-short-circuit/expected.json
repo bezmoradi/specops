@@ -1,0 +1,56 @@
+{
+  "fragment_A": {
+    "verdict": "FAIL",
+    "verdict_reason": "assertion_not_evaluated",
+    "not_evaluated": ["body.data.total_cents == 2000"],
+    "assertions": [
+      { "text": "status == 201", "result": true },
+      { "text": "body.code == \"ORDER_CREATED\"", "result": true },
+      { "text": "body.data.id exists", "result": true },
+      { "text": "body.data.status == \"pending\"", "result": true },
+      { "text": "body.data.total_cents == 2000", "result": null, "evaluated": false, "not_evaluated_because": "absent_from_bundle" }
+    ],
+    "why": "Five declared, four recorded, none false. The verdict follows from the absent assertion — NOT from re-deriving it against response.body.data.total_cents (500). Re-derivation is acquisition, it is unavailable for side-effect assertions, and an evaluator that does it here will do it where it has no evidence to do it with."
+  },
+
+  "fragment_B": {
+    "verdict": "FAIL",
+    "verdict_reason": "assertion_false",
+    "not_evaluated": [],
+    "assertions": [
+      { "text": "status == 201", "result": true },
+      { "text": "body.code == \"ORDER_CREATED\"", "result": true },
+      { "text": "body.data.id exists", "expected": "<present>", "actual": null, "result": false },
+      { "text": "body.data.status == \"pending\"", "result": true },
+      { "text": "body.data.total_cents == 2000", "result": true }
+    ],
+    "why": "A conformant bundle of a failing scenario: all five results present, one false. Same verdict as fragment A, entirely different event — a product defect with a complete record versus an incomplete record."
+  },
+
+  "fragment_C": {
+    "verdict": "FAIL",
+    "verdict_reason": "assertion_false",
+    "not_evaluated": [
+      "body.data.status == \"pending\"",
+      "body.data.total_cents == 2000"
+    ],
+    "assertions": [
+      { "text": "status == 201", "result": true },
+      { "text": "body.code == \"ORDER_CREATED\"", "result": true },
+      { "text": "body.data.id exists", "expected": "<present>", "actual": null, "result": false },
+      { "text": "body.data.status == \"pending\"", "result": null, "evaluated": false, "not_evaluated_because": "absent_from_bundle" },
+      { "text": "body.data.total_cents == 2000", "result": null, "evaluated": false, "not_evaluated_because": "absent_from_bundle" }
+    ],
+    "harness_findings": [
+      {
+        "code": "evaluation_short_circuited",
+        "stopped_after": "body.data.id exists",
+        "skipped": ["body.data.status == \"pending\"", "body.data.total_cents == 2000"],
+        "detail": "Both skipped assertions would have been false against the recorded response. The report cannot distinguish 'one thing is broken' from 'at least one thing is broken and we stopped counting'."
+      }
+    ],
+    "why": "The verdict is right and the run is defective. Steps 6-8 never short-circuit: the cost is a few wasted probes on a doomed scenario, the benefit is that one failing run reports everything that is wrong."
+  },
+
+  "conformance_note": "An evaluator that reads only the bundle cannot pass fragments A or C — it has no way to know five assertions were declared. Check that structurally before running anything: if the evaluator's signature does not take the specification, it is non-conformant by construction."
+}

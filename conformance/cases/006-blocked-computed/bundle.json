@@ -1,0 +1,62 @@
+{
+  "scenario": "conformance-006",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000006",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:02Z",
+
+  "declared_requires": [
+    { "kind": "fixture", "name": "tenant_b_seeded_order" },
+    { "kind": "credential", "name": "admin_token" }
+  ],
+
+  "fragments": {
+    "fragment_A": {
+      "requirements": [
+        { "name": "tenant_b_seeded_order", "available": false, "detail": "seeder returned no row for tenant_b" },
+        { "name": "admin_token", "available": true }
+      ],
+      "steps": []
+    },
+
+    "fragment_B": {
+      "requirements": [
+        { "name": "tenant_b_seeded_order", "available": false, "detail": "seeder returned no row for tenant_b" },
+        { "name": "admin_token", "available": true }
+      ],
+      "steps": [
+        {
+          "id": "s-B",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "GET https://api.fixture.example.test/v1/orders/01JQ0000000000000000000006",
+          "response": {
+            "status": 404,
+            "body": { "code": "ORDER_NOT_FOUND" }
+          },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 404", "expected": 404, "actual": 404, "result": true },
+        { "text": "body.code == \"ORDER_NOT_FOUND\"", "expected": "ORDER_NOT_FOUND", "actual": "ORDER_NOT_FOUND", "result": true }
+      ]
+    },
+
+    "fragment_C": {
+      "requirements": [
+        { "name": "tenant_b_seeded_order", "available": true },
+        { "name": "admin_token", "available": true }
+      ],
+      "steps": [],
+      "verdict_hint": "BLOCKED",
+      "executor_note": "could not locate the order id in the response, skipping"
+    }
+  },
+
+  "note": "Fragment B is the interesting bundle: it contains a complete, internally consistent, entirely passing execution. Everything in it is true. It is still BLOCKED, because the subject the assertions describe was never created."
+}

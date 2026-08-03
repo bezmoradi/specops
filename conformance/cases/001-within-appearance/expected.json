@@ -1,0 +1,64 @@
+{
+  "fragment_A": {
+    "step": "p-A",
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "assertions": [
+      {
+        "text": "event(billing).published where order_id == {{ORDER_ID}} within cross_service .event_type == \"order.created\"",
+        "wrapper": "within",
+        "expected": "order.created",
+        "actual": "order.created",
+        "satisfying_sample_at_ms": 9330,
+        "result": true
+      }
+    ],
+    "why": "`within` requires only that SOME sample satisfies the predicate. Two earlier samples were null; that is eventual consistency, not a failure. An evaluator returning FAIL here has made `within` as strict as `hold`."
+  },
+
+  "fragment_B": {
+    "step": "p-B",
+    "verdict": "FAIL",
+    "verdict_reason": "absent_within_budget",
+    "assertions": [
+      {
+        "text": "event(billing).published where order_id == {{ORDER_ID}} within cross_service .event_type == \"order.created\"",
+        "wrapper": "within",
+        "expected": "order.created",
+        "actual": null,
+        "last_sample_at_ms": 30000,
+        "result": false
+      }
+    ],
+    "why": "Polled to expiry, nothing matched, error is null. A probe that ran and returned nothing is a product signal: FAIL, not INFRA."
+  },
+
+  "fragment_C": {
+    "step": "p-C",
+    "verdict": "FAIL",
+    "verdict_reason": "absent_within_budget",
+    "assertions": [
+      {
+        "text": "event(billing).published where order_id == {{ORDER_ID}} within cross_service .event_type == \"order.created\"",
+        "wrapper": "within",
+        "expected": "order.created",
+        "actual": null,
+        "last_sample_at_ms": 4000,
+        "result": false
+      }
+    ],
+    "harness_findings": [
+      {
+        "code": "budget_not_honored",
+        "step": "p-C",
+        "budget": "cross_service",
+        "budget_ms": 30000,
+        "last_sample_at_ms": 4000,
+        "detail": "The poll stopped 26000ms short of expiry. The FAIL stands, but it is not evidence that the predicate was false for the declared budget."
+      }
+    ],
+    "why": "Verdicts may be weakened, never strengthened. A truncated poll can only manufacture a false red, so FAIL survives — but the truncation must be reported, or the suite silently redefines its own budgets."
+  },
+
+  "conformance_note": "An evaluator that returns the same verdict for fragment A as case 002 fragment A has collapsed `within` into `hold`. An evaluator that returns INDETERMINATE for fragment C has treated missing evidence for a red as an unknown; it is not — see method/02-verdicts.md."
+}

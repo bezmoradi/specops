@@ -1,0 +1,66 @@
+{
+  "scenario": "conformance-009",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000009",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:15Z",
+
+  "captures": {
+    "ORDER_ID": "01JQ0000000000000000000009"
+  },
+
+  "budgets": { "cross_service": 30000, "single_hop": 15000 },
+  "poll_intervals": { "cross_service": 1000, "single_hop": 1000 },
+
+  "steps": [
+    {
+      "id": "s-req",
+      "kind": "request",
+      "probe": "http",
+      "invocation": "POST https://api.fixture.example.test/v1/orders",
+      "response": { "status": 201, "body": { "code": "ORDER_CREATED", "data": { "id": "01JQ0000000000000000000009" } } },
+      "at_ms": 0,
+      "error": null
+    },
+    {
+      "id": "p-receipt",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where .data.order_id == '01JQ0000000000000000000009'",
+      "correlator": { "order_id": "01JQ0000000000000000000009" },
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 40,  "value": { "count": 0 } },
+        { "at_ms": 120, "value": { "count": 1 } }
+      ],
+      "attempts": 2,
+      "elapsed_ms": 120,
+      "error": null,
+      "_note": "Appearance poll. First-true-wins: satisfied at 120ms, stops. The duplicate has not arrived yet."
+    },
+    {
+      "id": "p-bracket",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where .data.order_id == '01JQ0000000000000000000009'",
+      "correlator": { "order_id": "01JQ0000000000000000000009" },
+      "budget": "single_hop",
+      "samples": [
+        { "at_ms": 120,   "value": { "count": 1 } },
+        { "at_ms": 1120,  "value": { "count": 1 } },
+        { "at_ms": 2120,  "value": { "count": 1 } },
+        { "at_ms": 4100,  "value": { "count": 2 } },
+        { "at_ms": 15120, "value": { "count": 2 } }
+      ],
+      "attempts": 5,
+      "elapsed_ms": 15000,
+      "error": null,
+      "_note": "The duplicate lands at 4100ms — after the receipt poll stopped looking. Only a wrapper that keeps sampling can see it."
+    }
+  ],
+
+  "_trap": "p-receipt and p-bracket observe the SAME subject and disagree, because they stop at different times. An evaluator that reuses p-bracket's samples to judge the receipt assertion will get the right answer for the wrong reason and fail fragment B."
+}

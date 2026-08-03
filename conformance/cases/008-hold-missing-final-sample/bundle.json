@@ -1,0 +1,87 @@
+{
+  "scenario": "conformance-008",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000008",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:30Z",
+
+  "captures": {
+    "ORDER_ID": "01JQ0000000000000000000008",
+    "MARKER": "spx-0000000000000008"
+  },
+
+  "budgets": { "cross_service": 30000 },
+  "poll_intervals": { "cross_service": 1000 },
+
+  "steps": [
+    {
+      "id": "p-A",
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(refunds).count where order_id == 01JQ0000000000000000000008",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,    "value": 1 },
+        { "at_ms": 1500, "value": 1 },
+        { "at_ms": 4000, "value": 1 }
+      ],
+      "attempts": 3,
+      "elapsed_ms": 4000,
+      "error": null
+    },
+    {
+      "id": "p-B",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-0000000000000008'",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,    "value": null },
+        { "at_ms": 1500, "value": null },
+        { "at_ms": 4000, "value": null }
+      ],
+      "attempts": 3,
+      "elapsed_ms": 4000,
+      "error": null
+    },
+    {
+      "id": "p-C",
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(refunds).count where order_id == 01JQ0000000000000000000008",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": 1 },
+        { "at_ms": 1000,  "value": 1 },
+        { "at_ms": 2000,  "value": 1 },
+        { "at_ms": 6000,  "value": 1 },
+        { "at_ms": 12000, "value": 1 },
+        { "at_ms": 20000, "value": 1 },
+        { "at_ms": 26000, "value": 1 },
+        { "at_ms": 30000, "value": 1 }
+      ],
+      "attempts": 8,
+      "elapsed_ms": 30000,
+      "error": null
+    },
+    {
+      "id": "p-D",
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(refunds).count where order_id == 01JQ0000000000000000000008",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": 1 },
+        { "at_ms": 30000, "value": 1 }
+      ],
+      "attempts": 2,
+      "elapsed_ms": 30000,
+      "error": null
+    }
+  ],
+
+  "note": "p-A and p-C differ only in where the sampling stopped, and every sample in both is true. That is the whole case: an evaluator implementing hold as all(samples) cannot tell them apart."
+}

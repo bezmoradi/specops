@@ -1,0 +1,26 @@
+# SpecOps is a methodology repo — there is no build output to ignore.
+# What follows guards the two things that leak from a real adopting repo,
+# plus the usual local noise.
+
+# Secrets and runtime scratch (these names are load-bearing in the method —
+# see method/06-isolation.md. Anyone copying templates/ into their own repo
+# should copy these ignore rules too.)
+.env
+.env.*
+!.env.example
+.run/
+runs/
+evidence/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local tooling
+node_modules/
+.venv/
+__pycache__/
+*.log

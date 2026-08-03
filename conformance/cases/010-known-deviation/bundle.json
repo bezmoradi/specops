@@ -1,0 +1,106 @@
+{
+  "scenario": "conformance-010",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000010",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:01Z",
+
+  "declared_deviation": {
+    "assertion": "status",
+    "intent": { "expr": "== 422", "cite": "api-contract#validation-errors" },
+    "observed": { "expr": "== 500" },
+    "present_in_planned_spec": true
+  },
+
+  "declared_assertions": [
+    "status == 500",
+    "body.error == \"Database operation failure\""
+  ],
+
+  "fragments": {
+    "fragment_A": {
+      "steps": [
+        {
+          "id": "s-A",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "POST https://api.fixture.example.test/v1/users",
+          "response": { "status": 500, "body": { "error": "Database operation failure" } },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 500", "expected": 500, "actual": 500, "result": true },
+        { "text": "body.error == \"Database operation failure\"", "expected": "Database operation failure", "actual": "Database operation failure", "result": true }
+      ]
+    },
+
+    "fragment_B": {
+      "steps": [
+        {
+          "id": "s-B",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "POST https://api.fixture.example.test/v1/users",
+          "response": { "status": 422, "body": { "error": "Required field", "message": "name is required" } },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 500", "expected": 500, "actual": 422, "result": false },
+        { "text": "body.error == \"Database operation failure\"", "expected": "Database operation failure", "actual": "Required field", "result": false }
+      ],
+      "_trap": "Both recorded assertions are FALSE and the correct verdict is PASS. Deviation resolution overrides them because the actual satisfies the declared intent. An evaluator that short-circuits on the first false assertion cannot reach this."
+    },
+
+    "fragment_C": {
+      "steps": [
+        {
+          "id": "s-C",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "POST https://api.fixture.example.test/v1/users",
+          "response": { "status": 503, "body": { "error": "Service unavailable" } },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 500", "expected": 500, "actual": 503, "result": false },
+        { "text": "body.error == \"Database operation failure\"", "expected": "Database operation failure", "actual": "Service unavailable", "result": false }
+      ]
+    },
+
+    "fragment_D": {
+      "declared_deviation_override": {
+        "assertion": "status",
+        "intent": { "expr": "== 422" },
+        "observed": { "expr": "== 500" },
+        "present_in_planned_spec": true
+      },
+      "steps": [
+        {
+          "id": "s-D",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "POST https://api.fixture.example.test/v1/users",
+          "response": { "status": 500, "body": { "error": "Database operation failure" } },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 500", "expected": 500, "actual": 500, "result": true },
+        { "text": "body.error == \"Database operation failure\"", "expected": "Database operation failure", "actual": "Database operation failure", "result": true }
+      ],
+      "_note": "Same as A, but the deviation's intent carries no cite. Verdict unchanged; a corpus finding is added."
+    }
+  },
+
+  "note": "present_in_planned_spec is required on every deviation block. An evaluator that accepts a block without it, or that synthesizes one, has opened the only path by which a FAIL becomes softer."
+}

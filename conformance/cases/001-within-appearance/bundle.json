@@ -1,0 +1,71 @@
+{
+  "scenario": "conformance-001",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:30Z",
+
+  "captures": {
+    "ORDER_ID": "01JQ0000000000000000000001"
+  },
+
+  "budgets": { "cross_service": 30000 },
+
+  "steps": [
+    {
+      "id": "p-A",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where .data.order_id == '01JQ0000000000000000000001'",
+      "correlator": { "order_id": "01JQ0000000000000000000001" },
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,    "value": null },
+        { "at_ms": 1500, "value": null },
+        { "at_ms": 9330, "value": { "event_type": "order.created", "data": { "order_id": "01JQ0000000000000000000001" } } }
+      ],
+      "attempts": 3,
+      "elapsed_ms": 9330,
+      "error": null
+    },
+    {
+      "id": "p-B",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where .data.order_id == '01JQ0000000000000000000001'",
+      "correlator": { "order_id": "01JQ0000000000000000000001" },
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": null },
+        { "at_ms": 1500,  "value": null },
+        { "at_ms": 9000,  "value": null },
+        { "at_ms": 18000, "value": null },
+        { "at_ms": 30000, "value": null }
+      ],
+      "attempts": 5,
+      "elapsed_ms": 30000,
+      "error": null
+    },
+    {
+      "id": "p-C",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where .data.order_id == '01JQ0000000000000000000001'",
+      "correlator": { "order_id": "01JQ0000000000000000000001" },
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,    "value": null },
+        { "at_ms": 1500, "value": null },
+        { "at_ms": 4000, "value": null }
+      ],
+      "attempts": 3,
+      "elapsed_ms": 4000,
+      "error": null
+    }
+  ],
+
+  "note": "Three probe steps, one per fragment. p-B polls to expiry; p-C stops at 4000ms of a 30000ms budget. Both fail — but only p-C is also a harness finding."
+}

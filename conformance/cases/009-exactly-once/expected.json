@@ -1,0 +1,76 @@
+{
+  "fragment_A": {
+    "steps": ["p-receipt"],
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "assertions": [
+      {
+        "text": "event(billing).published where order_id == {{ORDER_ID}} within cross_service exists",
+        "wrapper": "within",
+        "expected": "<present>",
+        "actual": "<present>",
+        "satisfying_sample_at_ms": 120,
+        "result": true
+      }
+    ],
+    "corpus_findings": [
+      {
+        "code": "exactly_once_unbracketed",
+        "detail": "Positive assertion on a stimulus-produced subject with a per-execution-unique correlator, outside a control block, with no bracketing wrapper in the scenario. method/12 H1."
+      }
+    ],
+    "why": "Correct evaluator behavior on a defective specification. `exists` is true of one message and equally true of two — it cannot fail on a duplicate. The verdict is right; the corpus finding is what carries the signal."
+  },
+
+  "fragment_B": {
+    "steps": ["p-receipt"],
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "assertions": [
+      {
+        "text": "event(billing).published where order_id == {{ORDER_ID}} within cross_service count == 1",
+        "wrapper": "within",
+        "expected": 1,
+        "actual": 1,
+        "satisfying_sample_at_ms": 120,
+        "result": true
+      }
+    ],
+    "corpus_findings": [
+      {
+        "code": "exactly_once_unbracketed",
+        "detail": "count == 1 with appearance semantics. Satisfied at 120ms; the duplicate at 4100ms arrives after polling stopped. Catches only a simultaneous duplicate, never a delayed one."
+      }
+    ],
+    "why": "The load-bearing fragment. `count == 1` is the obvious repair and it is still wrong — the receipt carve-out correctly assigns `within`, `within` is first-true-wins, and the evaluator stops looking before the duplicate lands. An evaluator that returns FAIL here has mis-implemented `within` as `hold` (see case 001)."
+  },
+
+  "fragment_C": {
+    "steps": ["p-receipt", "p-bracket"],
+    "verdict": "FAIL",
+    "verdict_reason": "assertion_false",
+    "assertions": [
+      {
+        "text": "event(billing).published where order_id == {{ORDER_ID}} within cross_service count == 1",
+        "wrapper": "within",
+        "expected": 1,
+        "actual": 1,
+        "satisfying_sample_at_ms": 120,
+        "result": true
+      },
+      {
+        "text": "event(billing).published where order_id == {{ORDER_ID}} hold single_hop count == 1",
+        "wrapper": "hold",
+        "expected": 1,
+        "actual": 2,
+        "violating_sample_at_ms": 4100,
+        "last_sample_at_ms": 15120,
+        "result": false
+      }
+    ],
+    "corpus_findings": [],
+    "why": "The pair. The receipt bounds the count upward from nothing and passes; the bracket bounds it forward in time and catches the delayed duplicate. Both assertions are recorded — the first is true and must still appear (case 007)."
+  },
+
+  "conformance_note": "A, B and C must produce different outputs against one bundle: PASS+finding, PASS+finding, FAIL. An evaluator returning FAIL for B has collapsed `within` into `hold`; one returning no corpus finding for A and B cannot surface the class at all, since neither has a false assertion to catch. That is the point of H1 — the evaluator alone cannot close it, and the static gate and the event-catalogue completeness check are the other two thirds."
+}

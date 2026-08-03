@@ -1,0 +1,112 @@
+{
+  "scenario": "conformance-007",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000007",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:01Z",
+
+  "declared_assertions": [
+    "status == 201",
+    "body.code == \"ORDER_CREATED\"",
+    "body.data.id exists",
+    "body.data.status == \"pending\"",
+    "body.data.total_cents == 2000"
+  ],
+
+  "fragments": {
+    "fragment_A": {
+      "steps": [
+        {
+          "id": "s-A",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "POST https://api.fixture.example.test/v1/orders",
+          "response": {
+            "status": 201,
+            "body": {
+              "code": "ORDER_CREATED",
+              "data": {
+                "id": "01JQ0000000000000000000007",
+                "status": "pending",
+                "total_cents": 500
+              }
+            }
+          },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 201", "expected": 201, "actual": 201, "result": true },
+        { "text": "body.code == \"ORDER_CREATED\"", "expected": "ORDER_CREATED", "actual": "ORDER_CREATED", "result": true },
+        { "text": "body.data.id exists", "expected": "<present>", "actual": "01JQ0000000000000000000007", "result": true },
+        { "text": "body.data.status == \"pending\"", "expected": "pending", "actual": "pending", "result": true }
+      ],
+      "_trap": "response.body.data.total_cents is 500, not 2000. The evaluator must NOT use this to derive the missing assertion's truth value — the verdict follows from absence."
+    },
+
+    "fragment_B": {
+      "steps": [
+        {
+          "id": "s-B",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "POST https://api.fixture.example.test/v1/orders",
+          "response": {
+            "status": 201,
+            "body": {
+              "code": "ORDER_CREATED",
+              "data": {
+                "status": "pending",
+                "total_cents": 2000
+              }
+            }
+          },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 201", "expected": 201, "actual": 201, "result": true },
+        { "text": "body.code == \"ORDER_CREATED\"", "expected": "ORDER_CREATED", "actual": "ORDER_CREATED", "result": true },
+        { "text": "body.data.id exists", "expected": "<present>", "actual": null, "result": false },
+        { "text": "body.data.status == \"pending\"", "expected": "pending", "actual": "pending", "result": true },
+        { "text": "body.data.total_cents == 2000", "expected": 2000, "actual": 2000, "result": true }
+      ]
+    },
+
+    "fragment_C": {
+      "steps": [
+        {
+          "id": "s-C",
+          "kind": "request",
+          "probe": "http",
+          "invocation": "POST https://api.fixture.example.test/v1/orders",
+          "response": {
+            "status": 201,
+            "body": {
+              "code": "ORDER_CREATED",
+              "data": {
+                "status": "cancelled",
+                "total_cents": 500
+              }
+            }
+          },
+          "at_ms": 0,
+          "error": null
+        }
+      ],
+      "recorded_assertions": [
+        { "text": "status == 201", "expected": 201, "actual": 201, "result": true },
+        { "text": "body.code == \"ORDER_CREATED\"", "expected": "ORDER_CREATED", "actual": "ORDER_CREATED", "result": true },
+        { "text": "body.data.id exists", "expected": "<present>", "actual": null, "result": false }
+      ],
+      "_trap": "Two further defects are sitting in this response — status is 'cancelled' and total_cents is 500. Neither was evaluated. When the id defect is fixed, both arrive looking like new regressions."
+    }
+  },
+
+  "note": "declared_assertions is at the top level because all three fragments share the same specification. An evaluator that never reads it cannot pass fragments A or C."
+}

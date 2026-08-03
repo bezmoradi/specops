@@ -1,0 +1,70 @@
+{
+  "scenario": "conformance-003",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:30Z",
+
+  "captures": {
+    "REFUND_ID": "ref_0000000000000003"
+  },
+
+  "budgets": { "cross_service": 30000 },
+
+  "steps": [
+    {
+      "id": "p-A",
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(refunds).item(ref_0000000000000003)",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": null },
+        { "at_ms": 5000,  "value": null },
+        { "at_ms": 15000, "value": null },
+        { "at_ms": 30000, "value": null }
+      ],
+      "attempts": 4,
+      "elapsed_ms": 30000,
+      "error": null
+    },
+    {
+      "id": "p-B",
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(refunds).item(ref_0000000000000003)",
+      "budget": "cross_service",
+      "samples": [],
+      "attempts": 1,
+      "elapsed_ms": 112,
+      "error": {
+        "kind": "transport",
+        "message": "dial tcp 10.0.4.19:8000: connect: connection refused",
+        "at_ms": 112
+      }
+    },
+    {
+      "id": "p-C",
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(refunds).item(ref_0000000000000003)",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": null },
+        { "at_ms": 5000,  "value": null },
+        { "at_ms": 15000, "value": null },
+        { "at_ms": 30000, "value": null }
+      ],
+      "attempts": 4,
+      "elapsed_ms": 30000,
+      "error": null,
+      "verdict_hint": "INFRA",
+      "executor_note": "store looked flaky, treating as infra"
+    }
+  ],
+
+  "note": "p-A and p-C are byte-identical apart from the executor's self-classification. That is the point: if the hint changed the verdict, the executor would be deciding it."
+}

@@ -1,0 +1,44 @@
+{
+  "scenario": "conformance-002#A",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:30Z",
+
+  "captures": {
+    "ORDER_ID": "01JQ0000000000000000000001",
+    "EVENT_ID": "8c1f2a90-0000-4000-8000-000000000002"
+  },
+
+  "budgets": { "cross_service": 30000 },
+
+  "steps": [
+    {
+      "kind": "request",
+      "probe": "queue",
+      "invocation": "publish queue(orders.cancellations) event_id=8c1f2a90-0000-4000-8000-000000000002",
+      "result": { "accepted": true },
+      "at_ms": 0
+    },
+    {
+      "kind": "probe",
+      "probe": "store",
+      "invocation": "store(refunds).count where order_id == 01JQ0000000000000000000001",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": 1 },
+        { "at_ms": 1500,  "value": 1 },
+        { "at_ms": 12000, "value": 2 },
+        { "at_ms": 30000, "value": 2 }
+      ],
+      "attempts": 4,
+      "elapsed_ms": 30000,
+      "error": null
+    }
+  ],
+
+  "note": "The final sample AT budget expiry is present, so `hold` is evaluatable. A bundle lacking it would itself be FAIL — see case 008."
+}

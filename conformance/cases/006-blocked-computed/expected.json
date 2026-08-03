@@ -1,0 +1,47 @@
+{
+  "fragment_A": {
+    "verdict": "BLOCKED",
+    "verdict_reason": "tenant_b_seeded_order",
+    "unmet_requirements": ["tenant_b_seeded_order"],
+    "assertions": [
+      { "text": "status == 404", "result": null, "evaluated": false, "not_evaluated_because": "blocked" },
+      { "text": "body.code == \"ORDER_NOT_FOUND\"", "result": null, "evaluated": false, "not_evaluated_because": "blocked" }
+    ],
+    "why": "Ordering step 1. The reason is the requirement NAME, so blocked scenarios can be grouped, counted, and assigned to whoever owns the fixture."
+  },
+
+  "fragment_B": {
+    "verdict": "BLOCKED",
+    "verdict_reason": "tenant_b_seeded_order",
+    "unmet_requirements": ["tenant_b_seeded_order"],
+    "assertions": [
+      { "text": "status == 404", "recorded_result": true, "result": null, "evaluated": false, "not_evaluated_because": "blocked" },
+      { "text": "body.code == \"ORDER_NOT_FOUND\"", "recorded_result": true, "result": null, "evaluated": false, "not_evaluated_because": "blocked" }
+    ],
+    "why": "Every recorded assertion is true and the verdict is BLOCKED. A 404 with no seeded order is indistinguishable from a 404 produced by a system with no tenancy enforcement (method/12 A4), so promoting these to PASS would certify exactly the property that was never tested."
+  },
+
+  "fragment_C": {
+    "verdict": "FAIL",
+    "verdict_reason": "assertion_not_evaluated",
+    "unmet_requirements": [],
+    "assertions": [
+      { "text": "status == 404", "result": null, "evaluated": false, "not_evaluated_because": "no_recorded_step" },
+      { "text": "body.code == \"ORDER_NOT_FOUND\"", "result": null, "evaluated": false, "not_evaluated_because": "no_recorded_step" }
+    ],
+    "harness_findings": [
+      {
+        "code": "blocked_without_unmet_requirement",
+        "claimed": "BLOCKED",
+        "computed": "FAIL",
+        "declared_requires": ["tenant_b_seeded_order", "admin_token"],
+        "all_available": true,
+        "executor_note": "could not locate the order id in the response, skipping",
+        "detail": "BLOCKED is unreachable when every declared requirement is available. The scenario did not run; it was not prevented from running."
+      }
+    ],
+    "why": "C2 itself. If BLOCKED can be declared rather than computed, it becomes the drain — a pile that carries no triage obligation and that any awkward scenario can be moved into."
+  },
+
+  "conformance_note": "The two directions are separately checkable. An evaluator that gets fragment A right and fragment C wrong is the common case, and it is the failing half: fragment C is where real failures go to become invisible."
+}

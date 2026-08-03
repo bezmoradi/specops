@@ -1,0 +1,72 @@
+{
+  "fragment_A": {
+    "steps": ["s-A"],
+    "verdict": "FAIL",
+    "verdict_reason": "empty_capture",
+    "unresolved_captures": ["TRACE_ID"],
+    "assertions": [
+      {
+        "text": "log(orders).line where trace_id == {{TRACE_ID}} within single_hop count >= 1",
+        "wrapper": "within",
+        "result": null,
+        "evaluated": false,
+        "not_evaluated_because": "empty_capture:TRACE_ID"
+      }
+    ],
+    "why": "R3: an unresolved capture is itself a FAIL. Evaluation halts at ordering step 5, and the halt is recorded — unlike case 007, where assertions went missing unrecorded."
+  },
+
+  "fragment_B": {
+    "steps": ["s-B", "p-B"],
+    "verdict": "FAIL",
+    "verdict_reason": "empty_capture",
+    "unresolved_captures": ["TRACE_ID"],
+    "assertions": [
+      {
+        "text": "log(orders).line where trace_id == {{TRACE_ID}} within single_hop count >= 1",
+        "wrapper": "within",
+        "expected": ">= 1",
+        "actual": 3,
+        "recorded_result": true,
+        "result": false,
+        "evaluated": true
+      }
+    ],
+    "harness_findings": [
+      {
+        "code": "weaker_correlator",
+        "step": "p-B",
+        "declared_correlator": "trace_id == {{TRACE_ID}}",
+        "issued_invocation": "log(orders).line where message contains 'order created'",
+        "detail": "The issued selector does not contain the declared correlator, and the capture it depends on is empty. The three matched lines are not provably this execution's."
+      }
+    ],
+    "why": "The recorded result: true is not honored. This is the case: a conformant evaluator returns FAIL while every assertion in the bundle says true, because the evidence is not attributable to this execution."
+  },
+
+  "fragment_C": {
+    "steps": ["s-C", "p-C"],
+    "verdict": "INDETERMINATE",
+    "verdict_reason": "capture_type_mismatch",
+    "indeterminate_cause": {
+      "cause": "capture_type_mismatch",
+      "capture": "ITEM_COUNT",
+      "expected_type": "number",
+      "actual_type": "array",
+      "assertion": "store(orders).item({{ORDER_ID}}) within index_propagation .item_count == {{ITEM_COUNT}}"
+    },
+    "assertions": [
+      {
+        "text": "store(orders).item({{ORDER_ID}}) within index_propagation .item_count == {{ITEM_COUNT}}",
+        "wrapper": "within",
+        "expected": "<array of 2>",
+        "actual": 2,
+        "result": null,
+        "evaluated": false
+      }
+    ],
+    "why": "The assertion is not false — it is unevaluatable. Returning FAIL would point the reader at the product; the defect is in the specification, which captured the array instead of its length. Note that the actual value 2 would have made a coincidental PASS very easy to reach by coercion."
+  },
+
+  "conformance_note": "Fragment B is the load-bearing one. An evaluator that returns PASS for it will return PASS for the single most common way an agent-executed suite goes wrong. Fragment C checks that INDETERMINATE is reached from the closed list by computation, not used as a residual category — an evaluator that coerces the array to its length and returns PASS is non-conformant."
+}

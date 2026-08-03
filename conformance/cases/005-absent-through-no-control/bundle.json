@@ -1,0 +1,159 @@
+{
+  "scenario": "conformance-005",
+  "spec_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+  "run_id": "conformance-fixture",
+  "environment": "fixture",
+  "build_under_test": "n/a",
+  "executor": { "agent": "fixture", "model": "n/a", "version": "n/a" },
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:32Z",
+
+  "captures": {
+    "MARKER": "spx-0000000000000005",
+    "CONTROL_MARKER": "spx-ctl-0000000000000005"
+  },
+
+  "budgets": { "cross_service": 30000 },
+
+  "spec_shape": {
+    "fragment_A": { "control_blocks": 0 },
+    "fragment_B": { "control_blocks": 1, "bracketed": false },
+    "fragment_C": { "control_blocks": 2, "bracketed": true },
+    "fragment_D": { "control_blocks": 2, "bracketed": true }
+  },
+
+  "steps": [
+    {
+      "id": "p-A",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-0000000000000005'",
+      "correlator": { "marker": "spx-0000000000000005" },
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": null },
+        { "at_ms": 7000,  "value": null },
+        { "at_ms": 21000, "value": null },
+        { "at_ms": 30000, "value": null }
+      ],
+      "attempts": 4,
+      "elapsed_ms": 30000,
+      "error": null
+    },
+
+    {
+      "id": "p-B-ctl",
+      "kind": "control",
+      "position": "leading",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-ctl-0000000000000005'",
+      "correlator": { "marker": "spx-ctl-0000000000000005" },
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,     "value": null },
+        { "at_ms": 7000,  "value": null },
+        { "at_ms": 21000, "value": null },
+        { "at_ms": 30000, "value": null }
+      ],
+      "attempts": 4,
+      "elapsed_ms": 30000,
+      "error": null
+    },
+
+    {
+      "id": "p-C-ctl-lead",
+      "kind": "control",
+      "position": "leading",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-ctl-0000000000000005'",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,    "value": null },
+        { "at_ms": 1200, "value": { "event_type": "order.cancelled", "raw": "…spx-ctl-0000000000000005…" } }
+      ],
+      "attempts": 2,
+      "elapsed_ms": 1200,
+      "error": null
+    },
+    {
+      "id": "p-C",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-0000000000000005'",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 1300,  "value": null },
+        { "at_ms": 8000,  "value": null },
+        { "at_ms": 22000, "value": null },
+        { "at_ms": 31300, "value": null }
+      ],
+      "attempts": 4,
+      "elapsed_ms": 30000,
+      "error": null
+    },
+    {
+      "id": "p-C-ctl-trail",
+      "kind": "control",
+      "position": "trailing",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-ctl2-0000000000000005'",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 31500, "value": { "event_type": "order.cancelled", "raw": "…spx-ctl2-0000000000000005…" } }
+      ],
+      "attempts": 1,
+      "elapsed_ms": 200,
+      "error": null
+    },
+
+    {
+      "id": "p-D-ctl-lead",
+      "kind": "control",
+      "position": "leading",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-ctl-0000000000000005'",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 0,    "value": null },
+        { "at_ms": 1200, "value": { "event_type": "order.cancelled", "raw": "…spx-ctl-0000000000000005…" } }
+      ],
+      "attempts": 2,
+      "elapsed_ms": 1200,
+      "error": null
+    },
+    {
+      "id": "p-D",
+      "kind": "probe",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-0000000000000005'",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 1300,  "value": null },
+        { "at_ms": 8000,  "value": null },
+        { "at_ms": 22000, "value": null },
+        { "at_ms": 31300, "value": null }
+      ],
+      "attempts": 4,
+      "elapsed_ms": 30000,
+      "error": null
+    },
+    {
+      "id": "p-D-ctl-trail",
+      "kind": "control",
+      "position": "trailing",
+      "probe": "event",
+      "invocation": "sink(specops-sink-billing).peek where raw contains 'spx-ctl2-0000000000000005'",
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 31500, "value": null },
+        { "at_ms": 45000, "value": null },
+        { "at_ms": 61500, "value": null }
+      ],
+      "attempts": 3,
+      "elapsed_ms": 30000,
+      "error": null
+    }
+  ],
+
+  "note": "Every control step records error: null. None of these is an environment failure — in each one a probe executed and reported what it saw. That is what makes the INFRA temptation in fragments B and D checkable rather than a matter of opinion."
+}

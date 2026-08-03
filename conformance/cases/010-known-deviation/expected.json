@@ -1,0 +1,83 @@
+{
+  "fragment_A": {
+    "verdict": "KNOWN-DEVIATION",
+    "verdict_reason": null,
+    "deviation": {
+      "assertion": "status",
+      "actual": 500,
+      "satisfies": "observed",
+      "contradicts_intent": "== 422",
+      "cite": "api-contract#validation-errors"
+    },
+    "assertions": [
+      { "text": "status == 500", "result": true },
+      { "text": "body.error == \"Database operation failure\"", "result": true }
+    ],
+    "counted_as": "KNOWN-DEVIATION",
+    "why": "Every assertion held and the actual matches the declared observation, which contradicts a cited intent. NOT PASS — folding this into PASS is exactly the laundering the verdict exists to prevent, and the exit code is the only channel a pipeline reads. NOT FAIL — permanent red on a known defect trains a team to ignore red."
+  },
+
+  "fragment_B": {
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "deviation": {
+      "assertion": "status",
+      "actual": 422,
+      "satisfies": "intent",
+      "resolved": true
+    },
+    "assertions": [
+      { "text": "status == 500", "recorded_result": false, "overridden_by": "deviation_resolved", "result": true },
+      { "text": "body.error == \"Database operation failure\"", "recorded_result": false, "overridden_by": "deviation_resolved", "result": true }
+    ],
+    "corpus_findings": [
+      {
+        "code": "deviation_resolved",
+        "detail": "The actual now satisfies the declared intent (== 422). Delete the deviation block and retag the assertion @intent against the same citation."
+      }
+    ],
+    "why": "The fragment that justifies a three-way resolution. Under a plain @contract assertion of status == 500, fixing the product turns this red — the suite punishes the repair. Here the fix produces green plus an instruction to remove the obsolete declaration. This is the one place a false recorded assertion does not produce FAIL, and it is safe because the alternative discourages fixing bugs."
+  },
+
+  "fragment_C": {
+    "verdict": "FAIL",
+    "verdict_reason": "deviation_drifted",
+    "deviation": {
+      "assertion": "status",
+      "actual": 503,
+      "satisfies": null,
+      "declared_intent": "== 422",
+      "declared_observed": "== 500"
+    },
+    "assertions": [
+      { "text": "status == 500", "expected": 500, "actual": 503, "result": false },
+      { "text": "body.error == \"Database operation failure\"", "expected": "Database operation failure", "actual": "Service unavailable", "result": false }
+    ],
+    "why": "Neither the cited intent nor the declared observation. Something moved that nobody declared. This is the fragment that stops a deviation block from becoming a blanket exemption for a route."
+  },
+
+  "fragment_D": {
+    "verdict": "KNOWN-DEVIATION",
+    "verdict_reason": null,
+    "deviation": {
+      "assertion": "status",
+      "actual": 500,
+      "satisfies": "observed",
+      "contradicts_intent": "== 422",
+      "cite": null
+    },
+    "assertions": [
+      { "text": "status == 500", "result": true },
+      { "text": "body.error == \"Database operation failure\"", "result": true }
+    ],
+    "corpus_findings": [
+      {
+        "code": "deviation_without_citation",
+        "detail": "The declared intent has no resolvable citation, so the block asserts that the system is wrong without saying what says so."
+      }
+    ],
+    "why": "Verdict unchanged — the evaluator judges evidence, not specification quality. Without a citation the block is one engineer's opinion rather than a deviation from anything, and it is reported the same way an @intent tag lacking a citation is."
+  },
+
+  "conformance_note": "Four fragments, four distinct outputs: KNOWN-DEVIATION, PASS+finding, FAIL, KNOWN-DEVIATION+finding. An evaluator that returns PASS for A has reintroduced the laundering. One that returns FAIL for B punishes the repair and will train authors to delete deviation blocks rather than use them. One that returns KNOWN-DEVIATION for C has turned the block into a blanket exemption. Additionally: a conformant evaluator handed fragment C's bundle with an after-the-fact block claiming observed == 503 must reject it as a harness finding and keep the FAIL — that is the only route by which a FAIL could become softer, so it is the one that must be closed."
+}

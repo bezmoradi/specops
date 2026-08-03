@@ -1,0 +1,85 @@
+{
+  "fragment_A": {
+    "step": "p-A",
+    "verdict": "FAIL",
+    "verdict_reason": "missing_final_sample",
+    "assertions": [
+      {
+        "text": "store(refunds).count where order_id == {{ORDER_ID}} hold cross_service == 1",
+        "wrapper": "hold",
+        "expected": 1,
+        "all_samples_satisfied": true,
+        "budget_ms": 30000,
+        "last_sample_at_ms": 4000,
+        "result": false
+      }
+    ],
+    "why": "Every sample satisfies the predicate and the verdict is FAIL. `hold` is a claim about a duration; evidence that stops at 4000ms cannot settle a claim about 30000ms. An evaluator implementing hold as all(samples) returns PASS and reproduces the case-002 defect by a different route."
+  },
+
+  "fragment_B": {
+    "step": "p-B",
+    "verdict": "FAIL",
+    "verdict_reason": "missing_final_sample",
+    "assertions": [
+      {
+        "text": "event(billing).published where {{MARKER}} appears anywhere absent through cross_service",
+        "wrapper": "absent through",
+        "expected": "<no match>",
+        "no_sample_matched": true,
+        "budget_ms": 30000,
+        "last_sample_at_ms": 4000,
+        "result": false
+      }
+    ],
+    "why": "Same rule. Absence is entirely a claim about the window, so a shortened window is a proportionally weaker claim — and this is the assertion form whose failure mode is permanent green."
+  },
+
+  "fragment_C": {
+    "step": "p-C",
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "assertions": [
+      {
+        "text": "store(refunds).count where order_id == {{ORDER_ID}} hold cross_service == 1",
+        "wrapper": "hold",
+        "expected": 1,
+        "all_samples_satisfied": true,
+        "budget_ms": 30000,
+        "last_sample_at_ms": 30000,
+        "result": true
+      }
+    ],
+    "why": "The baseline. An evaluator cannot pass this case by rejecting every hold."
+  },
+
+  "fragment_D": {
+    "step": "p-D",
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "assertions": [
+      {
+        "text": "store(refunds).count where order_id == {{ORDER_ID}} hold cross_service == 1",
+        "wrapper": "hold",
+        "expected": 1,
+        "all_samples_satisfied": true,
+        "budget_ms": 30000,
+        "last_sample_at_ms": 30000,
+        "result": true
+      }
+    ],
+    "harness_findings": [
+      {
+        "code": "sampling_interval_not_honored",
+        "step": "p-D",
+        "declared_poll_interval_ms": 1000,
+        "samples": 2,
+        "expected_minimum_samples": 31,
+        "detail": "Two samples across a 30000ms budget at a declared 1000ms interval. The PASS stands under the stated rule; a transient violation between the two samples would pass through untouched."
+      }
+    ],
+    "why": "PASS is correct and the finding is mandatory. The evaluator must not invent a density threshold — the interval is DECLARED in the environment binding, which is what makes the shortfall checkable rather than a matter of taste. An evaluator without access to the binding omits this finding and says it did."
+  },
+
+  "conformance_note": "Fragments A and C are the pair to test first. They are identical apart from where sampling stopped, and every recorded sample in both is true — so an evaluator that returns the same verdict for them has implemented `hold` as all(samples) and has a second route to the 002 defect."
+}

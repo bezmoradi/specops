@@ -1,0 +1,96 @@
+{
+  "fragment_A": {
+    "steps": ["p-A"],
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "assertions": [
+      {
+        "text": "event(billing).published where {{MARKER}} appears anywhere absent through cross_service",
+        "wrapper": "absent through",
+        "expected": "<no match>",
+        "actual": "<no match>",
+        "last_sample_at_ms": 30000,
+        "result": true
+      }
+    ],
+    "corpus_findings": [
+      {
+        "code": "inverted_assertion_without_control",
+        "assertion": "event(billing).published where {{MARKER}} appears anywhere absent through cross_service",
+        "detail": "An inverted verdict with no control block. The PASS is computed correctly from the evidence; the evidence just cannot distinguish 'did not fire' from 'could not be seen'. method/12 G1."
+      }
+    ],
+    "why": "Both outputs are required. The verdict stays PASS because the evaluator judges evidence, not specification quality — the corpus finding is how the gate learns to reject this statically instead."
+  },
+
+  "fragment_B": {
+    "steps": ["p-B-ctl"],
+    "verdict": "FAIL",
+    "verdict_reason": "control",
+    "control_results": [
+      {
+        "step": "p-B-ctl",
+        "position": "leading",
+        "text": "event(billing).published where {{CONTROL_MARKER}} appears anywhere within cross_service count == 1",
+        "expected": 1,
+        "actual": 0,
+        "last_sample_at_ms": 30000,
+        "result": false
+      }
+    ],
+    "assertions": [
+      {
+        "text": "event(billing).published where {{MARKER}} appears anywhere absent through cross_service",
+        "wrapper": "absent through",
+        "result": null,
+        "evaluated": false,
+        "not_evaluated_because": "control_failed"
+      }
+    ],
+    "why": "Ordering step 4 stops on a failed leading control. Not INFRA: error is null and four samples completed, so a probe ran and observed the product failing to publish something it was supposed to publish."
+  },
+
+  "fragment_C": {
+    "steps": ["p-C-ctl-lead", "p-C", "p-C-ctl-trail"],
+    "verdict": "PASS",
+    "verdict_reason": null,
+    "control_results": [
+      { "step": "p-C-ctl-lead",  "position": "leading",  "expected": 1, "actual": 1, "result": true },
+      { "step": "p-C-ctl-trail", "position": "trailing", "expected": 1, "actual": 1, "result": true }
+    ],
+    "assertions": [
+      {
+        "text": "event(billing).published where {{MARKER}} appears anywhere absent through cross_service",
+        "wrapper": "absent through",
+        "expected": "<no match>",
+        "actual": "<no match>",
+        "last_sample_at_ms": 31300,
+        "result": true
+      }
+    ],
+    "why": "The observation path is demonstrably live at both ends of the window and nothing matched inside it. This is what an inverted verdict is supposed to look like."
+  },
+
+  "fragment_D": {
+    "steps": ["p-D-ctl-lead", "p-D", "p-D-ctl-trail"],
+    "verdict": "FAIL",
+    "verdict_reason": "control",
+    "control_results": [
+      { "step": "p-D-ctl-lead",  "position": "leading",  "expected": 1, "actual": 1, "result": true },
+      { "step": "p-D-ctl-trail", "position": "trailing", "expected": 1, "actual": 0, "last_sample_at_ms": 61500, "result": false }
+    ],
+    "assertions": [
+      {
+        "text": "event(billing).published where {{MARKER}} appears anywhere absent through cross_service",
+        "wrapper": "absent through",
+        "expected": "<no match>",
+        "actual": "<no match>",
+        "last_sample_at_ms": 31300,
+        "result": true
+      }
+    ],
+    "why": "The inverted assertion is true and the verdict is still FAIL. The bracket failed, so the clean absence poll covers an unknown fraction of the window — 'the event did not fire' collapses into 'nothing could have been seen to fire'."
+  },
+
+  "conformance_note": "Fragments C and D differ only in the trailing control. An evaluator that returns the same verdict for both has treated the bracket as decoration, and every inverted scenario it evaluates is a front-only control — proof the pipeline was live when the window opened and nothing more."
+}

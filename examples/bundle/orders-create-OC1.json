@@ -1,0 +1,132 @@
+{
+  "_comment": "A worked evidence bundle for examples/rest-crud/orders-create.md OC1. adoption/getting-started.md Step 6 tells you to read one of these rather than the verdict — this is the one. Read the checklist at the bottom of that step against this file.",
+
+  "scenario": "orders-create#OC1",
+  "spec_hash": "sha256:9f2b4c1e7a3d0518be6c2a94f13d7e05c8ab41f6d29e0b7c3a5148e6d0f92b1a",
+  "run_id": "2026-08-01T09:14:22Z-a63dc1b",
+  "environment": "staging",
+  "build_under_test": "a63dc1b",
+  "executor": { "agent": "specops-executor", "model": "<model-id>", "version": "0.1.0" },
+  "plan": { "source": "replay", "plan_hash": "sha256:1c0f…", "planned_at": "2026-07-28T11:02:10Z" },
+  "started_at": "2026-08-01T09:14:22.011Z",
+  "finished_at": "2026-08-01T09:14:31.884Z",
+
+  "budgets": { "index_propagation": 15000, "cross_service": 30000 },
+
+  "captures": {
+    "SKU": "sku-7f3a91",
+    "ORDER_ID": "01JQ7N8XR4K2P0V9M3T5C1B6D8",
+    "TRACE_ID": "4bf92f3577b34da6a3ce929d0e0e4736"
+  },
+
+  "steps": [
+    {
+      "kind": "setup",
+      "probe": "http",
+      "invocation": "POST https://api.staging.example.com/v1/catalogue",
+      "request": {
+        "headers": { "authorization": "[REDACTED sha256:2f9a…]", "content-type": "application/json" },
+        "body": { "sku": "sku-7f3a91", "price_cents": 1000, "stock": 100 }
+      },
+      "response": { "status": 201, "body": { "code": "CATALOGUE_ITEM_CREATED" }, "duration_ms": 61 },
+      "at_ms": 0,
+      "error": null
+    },
+    {
+      "kind": "request",
+      "probe": "http",
+      "invocation": "POST https://api.staging.example.com/v1/orders",
+      "request": {
+        "headers": { "authorization": "[REDACTED sha256:2f9a…]", "content-type": "application/json" },
+        "body": { "customer_id": "cus_0a41", "items": [{ "sku": "sku-7f3a91", "quantity": 2 }] }
+      },
+      "response": {
+        "status": 201,
+        "headers": { "x-trace-id": "4bf92f3577b34da6a3ce929d0e0e4736", "content-type": "application/json" },
+        "body": {
+          "code": "ORDER_CREATED",
+          "data": {
+            "id": "01JQ7N8XR4K2P0V9M3T5C1B6D8",
+            "status": "pending",
+            "customer_id": "cus_0a41",
+            "items": [{ "sku": "sku-7f3a91", "quantity": 2 }],
+            "total_cents": 2000
+          }
+        },
+        "duration_ms": 84
+      },
+      "at_ms": 61,
+      "error": null
+    },
+    {
+      "kind": "probe",
+      "probe": "store",
+      "binding": "stores.orders",
+      "binding_validated": true,
+      "invocation": "store(orders).item(01JQ7N8XR4K2P0V9M3T5C1B6D8)",
+      "budget": "index_propagation",
+      "samples": [
+        { "at_ms": 148,  "value": null },
+        { "at_ms": 1152, "value": { "status": "pending", "customer_id": "cus_0a41", "tenant_id": "ten_a" } }
+      ],
+      "attempts": 2,
+      "elapsed_ms": 1004,
+      "error": null
+    },
+    {
+      "kind": "probe",
+      "probe": "event",
+      "binding": "events.billing.sink",
+      "binding_validated": true,
+      "invocation": "sink(specops-sink-billing).peek where .data.order_id == '01JQ7N8XR4K2P0V9M3T5C1B6D8'",
+      "correlator": { "order_id": "01JQ7N8XR4K2P0V9M3T5C1B6D8" },
+      "budget": "cross_service",
+      "samples": [
+        { "at_ms": 1160, "value": null },
+        { "at_ms": 2170, "value": null },
+        { "at_ms": 9330, "value": { "event_type": "order.created", "data": { "order_id": "01JQ7N8XR4K2P0V9M3T5C1B6D8", "tenant_id": "ten_a", "total_cents": 2000 } } }
+      ],
+      "attempts": 3,
+      "elapsed_ms": 8170,
+      "error": null,
+      "_note": "8.2s of a 30s budget. Not close yet — but this is the number method/11 says to watch. If it trends toward 30s, this scenario is one deploy from red and nothing else in the run will tell you."
+    }
+  ],
+
+  "assertions": [
+    { "source": "expect response", "text": "status == 201", "provenance": "@intent", "expected": 201, "actual": 201, "result": true },
+    { "source": "expect response", "text": "body.code == \"ORDER_CREATED\"", "provenance": "@contract", "expected": "ORDER_CREATED", "actual": "ORDER_CREATED", "result": true },
+    { "source": "expect response", "text": "body.data.id exists", "provenance": "@contract", "expected": "<present>", "actual": "01JQ7N8XR4K2P0V9M3T5C1B6D8", "result": true },
+    { "source": "expect response", "text": "body.data.status == \"pending\"", "provenance": "@intent", "citation": "ORD-14", "expected": "pending", "actual": "pending", "result": true },
+    { "source": "expect response", "text": "body.data.customer_id == \"{{TENANT_A_CUSTOMER}}\"", "provenance": "@contract", "expected": "cus_0a41", "actual": "cus_0a41", "result": true },
+    { "source": "expect response", "text": "body.data.items count == 1", "provenance": "@contract", "expected": 1, "actual": 1, "result": true },
+    { "source": "expect response", "text": "body.data.items.0.sku == \"{{SKU}}\"", "provenance": "@contract", "expected": "sku-7f3a91", "actual": "sku-7f3a91", "result": true },
+    { "source": "expect response", "text": "body.data.items.0.quantity == 2", "provenance": "@contract", "expected": 2, "actual": 2, "result": true },
+    { "source": "expect response", "text": "body.data.total_cents == 2000", "provenance": "@contract", "expected": 2000, "actual": 2000, "result": true },
+
+    { "source": "expect side-effect", "text": "store(orders).item({{ORDER_ID}}) within index_propagation .status == \"pending\"", "wrapper": "within", "provenance": "@contract", "expected": "pending", "actual": "pending", "satisfying_sample_at_ms": 1152, "result": true },
+    { "source": "expect side-effect", "text": "… .customer_id == \"{{TENANT_A_CUSTOMER}}\"", "wrapper": "within", "provenance": "@contract", "expected": "cus_0a41", "actual": "cus_0a41", "result": true },
+    { "source": "expect side-effect", "text": "… .tenant_id == \"{{TENANT_A}}\"", "wrapper": "within", "provenance": "@contract", "expected": "ten_a", "actual": "ten_a", "result": true },
+    { "source": "expect side-effect", "text": "event(billing).published where order_id == {{ORDER_ID}} within cross_service .event_type == \"order.created\"", "wrapper": "within", "provenance": "@contract", "expected": "order.created", "actual": "order.created", "satisfying_sample_at_ms": 9330, "result": true },
+    { "source": "expect side-effect", "text": "… .tenant_id == \"{{TENANT_A}}\"", "wrapper": "within", "provenance": "@contract", "expected": "ten_a", "actual": "ten_a", "result": true },
+    { "source": "expect side-effect", "text": "… .total_cents == 2000", "wrapper": "within", "provenance": "@contract", "expected": 2000, "actual": 2000, "result": true }
+  ],
+
+  "teardown": [
+    { "invocation": "DELETE /v1/orders/01JQ7N8XR4K2P0V9M3T5C1B6D8", "status": 204, "result": true },
+    { "invocation": "DELETE /v1/catalogue/sku-7f3a91", "status": 204, "result": true }
+  ],
+
+  "verdict": "PASS",
+  "verdict_reason": null,
+  "retries": { "infra": 0 },
+
+  "_read_this_file_for": [
+    "Every assertion appears — including the nine that passed. An assertion ABSENT here was never evaluated (method/12 A2).",
+    "Each side-effect assertion has a real probe step behind it, with a verbatim invocation.",
+    "The correlator is ORDER_ID, the one the specification declared — not a broadened fallback (method/12 B1).",
+    "binding_validated: true means the probe targeted what environments/staging.yaml declares, not an improvised source (method/01 threat model).",
+    "Attempts and elapsed time per polled step. 8.2s of 30s is the early-warning number.",
+    "Credentials are redacted at capture, with a hash so two steps using the same token are still comparable."
+  ]
+}

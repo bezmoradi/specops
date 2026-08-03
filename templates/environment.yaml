@@ -1,0 +1,96 @@
+# environments/<name>.yaml
+#
+# Maps LOGICAL names used in specifications to PHYSICAL infrastructure.
+# Specifications never contain a hostname, region, table name, or cluster command.
+# Change environment → change this file. Specifications do not move.
+#
+# See method/10-environments.md
+
+name: staging
+
+# ── Safety class ─────────────────────────────────────────────────────────────
+# mutable   — normal verification environment; mutations and escape hatches allowed
+# read-only — probes may observe; NOTHING may be written (use for production)
+# forbidden — never target this
+#
+# The runner REFUSES mutating steps against a non-mutable environment. This is
+# enforcement, not a warning. A safety property enforced by prose is enforced only
+# while everyone is paying attention.
+safety: mutable
+
+# ── Surfaces ─────────────────────────────────────────────────────────────────
+# One entry per logical entry point. Systems with more than one need all of them
+# declared — sending a request to the wrong surface can be answered by a different
+# service and pass. See method/12-false-greens.md D1.
+surfaces:
+  api:   https://api.staging.example.com
+  data:  https://data.staging.example.com
+
+# A path only the intended service serves, plus a distinctive fact about its
+# response. Asserted once at run start to prove routing has not drifted.
+routing_preflight:
+  - surface: api
+    path: /v1/_meta
+    expect: body.service == "orders"
+  - surface: data
+    path: /internal/_meta
+    expect: status == 401
+
+# ── Data stores ──────────────────────────────────────────────────────────────
+stores:
+  orders:     { prefix: "staging_", name: "orders" }
+  customers:  { prefix: "staging_", name: "customers" }
+
+# ── Messaging ────────────────────────────────────────────────────────────────
+events:
+  billing:
+    topic: staging-billing
+    sink:  specops-sink-billing      # the suite's own private subscriber, if any
+  notifications:
+    topic: staging-notifications
+    sink:  specops-sink-notifications
+
+# ── Evidence access ──────────────────────────────────────────────────────────
+evidence:
+  logs:
+    orders:
+      selector: "app=orders-service"
+      aggregate_replicas: true       # a request lands on ONE replica
+      replicas: 2
+    payments:
+      selector: "app=payments-service"
+      aggregate_replicas: true
+      replicas: 2
+  metrics:
+    endpoint: <how metrics are read here>
+
+# ── Poll budgets ─────────────────────────────────────────────────────────────
+# Referenced BY NAME from specifications, so a slow environment is tuned in one
+# place rather than by editing hundreds of specs (which people do instead, badly,
+# by adding retries). See method/03-evidence-rules.md R4.
+budgets:
+  index_propagation: 15s
+  single_hop:        15s
+  cross_service:     30s
+  poll_interval:     1s
+
+# ── Permanent fixtures ───────────────────────────────────────────────────────
+# Never mutated, never deleted. Teardown's keep-list.
+fixtures:
+  permanent:
+    - id: acct_0001
+      note: platform administrator account
+    - id: acct_0002
+      note: synthetic monitoring account
+
+# ── Evidence bundles ─────────────────────────────────────────────────────────
+evidence_output:
+  path: runs/                        # gitignored
+  redact:
+    headers: [authorization, cookie, set-cookie, x-api-key]
+    body_paths: [password, token, secret, access_token, refresh_token]
+    unknown_headers_on_auth_routes: redact
+  retention:
+    full: 30d
+    index: forever
+    pin_promotion_runs: true
