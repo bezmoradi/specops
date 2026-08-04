@@ -139,6 +139,32 @@ The failure mode this prevents: an agent that cannot complete a scenario decides
 
 A `BLOCKED` count trending upward is a suite decaying. Track it.
 
+### Preconditions may be about regime, not only presence
+
+A `requires` entry is usually a thing that exists or does not: a fixture, a credential, a
+sandbox. It may also be a **quantitative regime** — a threshold outside which the
+scenario's subject is provably unobservable, whatever the product does. Timing-sensitive
+contracts have these: past some latency, some queue depth, some clock skew, a control that
+is present and a control that has been deleted produce identical observable behavior, and
+no assertion at any sample size separates them
+([`12-false-greens.md`](12-false-greens.md) G9).
+
+```
+​```requires
+regime: observed_elapsed < 85s   # above this, control-present and control-absent are
+                                 # observationally identical — derivation in the spec
+​```
+```
+
+This is not a softening of the rule above; it is the same rule applied to a measured
+precondition, and the distinction from a judgement call is auditable. A derived threshold
+has arithmetic behind it and is written **before** the run. A judgement call appears for
+the first time in the report. If you cannot show the derivation, you have
+[`12-false-greens.md`](12-false-greens.md) C2, not a precondition.
+
+Inside such a region `BLOCKED` is the only honest verdict: `PASS` claims a verification
+that did not occur, and `FAIL` blames the product for the environment.
+
 ## N/A
 
 The specification declares that this scenario documents a behavior a black-box run cannot

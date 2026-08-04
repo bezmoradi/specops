@@ -272,6 +272,46 @@ rarely in the specification, because provisioning is written as plumbing.
 **Cost.** Every event scenario needs its provisioning path audited for emissions, and the
 drain adds a poll to scenarios that already have one.
 
+### B10 — The setup that prevents the code under test from running
+
+**Symptom.** A scenario reds against a correct product. Or it greens having never executed
+the line it exists to cover — and which one you get depends on state unrelated to the
+behavior.
+
+**Mechanism.** B9's mirror image. There the fixture *emits* the signal under test; here the
+fixture *suppresses the path* to it. A defensive measure in the setup — chosen to make the
+scenario safe to run — lands on a branch the product evaluates **before** the code under
+test. The stimulus is accepted, the handler returns early on the defensive condition, and
+the assertion is evaluated against a system that never reached the subject.
+
+A scenario covering a failure-unwind path (release a dedup sentinel so redelivery can
+retry) set its recipient to a blocked test domain "as a second safety net" against sending
+real mail. The handler's branch order was claim → blocked-domain skip → preference gate →
+send → unwind. The blocked domain returned at branch 2. The unwind at branch 5 never ran,
+the sentinel was — correctly — still present, and the scenario failed its primary assertion
+against a service whose unwind works perfectly.
+
+**The polarity is luck.** That one reddened, which is loud and gets investigated. Had the
+sentinel been absent for any unrelated reason — a TTL, an earlier purge, a colliding key —
+the same scenario would have gone green having executed none of the code it names, and
+nobody would have looked. The defect is the short-circuit, not the colour it happened to
+produce.
+
+The tell is textual and greppable: belt-and-braces language in a Setup — "as a second
+safety net", "just in case", "also blocked so it can't escape". A second guard is free only
+when it sits **downstream** of the subject. Whenever the product's own branch order puts
+the belt first, the net is a short-circuit.
+
+**Rule.** For any scenario whose subject is a *late* branch, write the product's branch
+order into the specification and mark which branch each setup choice lands on. Prefer the
+single narrowest guard provably downstream of the subject over stacking guards upstream —
+in the case above, the sending-domain fence, which rejects locally *after* the send begins,
+was sufficient alone and was already present. When auditing, ask **"what does my setup
+prevent?"** — the mirror of B9's "what does my setup publish?"
+
+**Cost.** The author must read the handler's control flow, not just its contract. B9 costs
+you the provisioning path; this costs you the branch order.
+
 ## C. Verdict laundering
 
 ### C1 — Re-run until green
@@ -450,6 +490,43 @@ verifying the wrong contract entirely.
 per file**. One source file routinely mixes both kinds ([`04-spec-altitude.md`](04-spec-altitude.md)).
 
 **Cost.** Authors must know which surface they are on. They should.
+
+### E4 — The oracle that computes its own expectation
+
+**Symptom.** A precise, two-sided, well-reasoned assertion. It passes with the control
+deleted.
+
+**Mechanism.** When a constant expectation proves brittle — it depends on environment
+speed, load, or timing (G9) — the natural repair is to **derive** the expectation at
+runtime from something measured during the run. The assertion stops being a magic number
+and starts being principled. It can also stop being able to fail.
+
+The trap is that the measured input is frequently **itself downstream of the failure
+mode**. Removing the control moves the measurement in the same direction it moves the
+observation, and the two travel together: the defect funds its own alibi.
+
+A per-connection rate limiter (burst 10, refill 1/sec) was asserted by flooding a socket
+with 20 frames and requiring at least one rejection. That count turned out to depend on
+server latency, so the proposed repair measured elapsed time `T` across the persisted rows
+and asserted `|rows − (burst + rate·T)| ≤ 2` — parameterised by the real contract, immune
+to environment speed, and wrong. Delete the limiter: all 20 frames are accepted, each costs
+its full processing time, so `T` inflates to ≈9.5s, the expectation becomes
+`min(20, 10 + 9.5) = 19.5`, and `|20 − 19.5| = 0.5` **passes**. The crude bound it replaced
+— `rows < 20` — caught exactly that case. The repair was a downgrade that read as a strict
+improvement, and it was two review passes from shipping.
+
+**Rule.** **A measurement-derived oracle is falsifiable iff the measured input cannot
+absorb the failure mode it targets.** Test that directly rather than reasoning about it:
+compute the oracle's verdict under the mutation it exists to catch, on paper, before
+shipping it. If the answer is PASS, the oracle is decorative. Three properties restore it:
+
+1. Pin the **contract** constants as specification literals; measure only the free variable.
+2. Size the stimulus so the derived bound sits far from the trivial upper limit — if
+   `expected` can approach the total sent, "everything was accepted" is inside the band.
+3. Where no sizing works, gate the region rather than asserting into it (G9).
+
+**Cost.** Every derived oracle needs an explicit refutation check against its own target
+mutation, recorded in the specification beside the derivation.
 
 ---
 
@@ -756,6 +833,86 @@ not.
 
 **Cost.** Slower exhaustive searches, and one calibration probe per audit tool — paid once,
 not per audit.
+
+### G9 — The verdict is a function of an undeclared environmental variable
+
+**Symptom.** The same scenario, the same input, the same build, two runs, two different
+numbers. Both recorded `PASS`, and neither run was wrong.
+
+**Mechanism.** G5 covers *configuration* divergence — discrete keys someone can enumerate
+and diff. This is its continuous twin: a performance property no configuration file records
+(per-request latency, queue depth, replica placement, clock skew) that the scenario's
+arithmetic silently depends on.
+
+Such a scenario is usually derived correctly for **one** value of that variable, and the
+derivation is written down — which is what makes it convincing. What is not written down is
+that the variable is free.
+
+A rate-limit flood asserted "at least one rejection" from a client sending at a fixed 250ms
+cadence. But the server dispatched frames serially and inline, so the real spacing between
+limiter decisions was `max(client cadence, server processing)` — client-bound on a fast
+day, server-bound on a slow one. Two runs on identical input produced 6 rejections/14 rows
+and 1 rejection/19 rows. Solving for the boundary, **zero** rejections occur once
+processing reaches 0.53s; the observed run sat at 0.50. The scenario was ~5% of an
+unrelated latency drift away from a `FAIL` that would have been filed against a rate
+limiter working exactly as designed.
+
+"5% of margin" is the flattering framing. The variable is not a stable property but the
+mean of a noisy distribution, so the verdict was a function of a random variable straddling
+a cliff.
+
+There is often a **hard floor** underneath, and it is worth finding: past some value of the
+variable, the presence and the absence of the control become *observationally identical*,
+and no assertion at any sample size separates them. Below the cliff you have a scenario;
+above it you have a coin.
+
+**Rule.** When a scenario's expected value is derived, state the environmental variable it
+is derived **against** and solve for the value at which the verdict flips. If that value is
+reachable in the target environment, either resize the stimulus until the flip point is far
+outside the plausible range, or declare the unobservable region as a precondition and
+report `BLOCKED` inside it ([`02-verdicts.md`](02-verdicts.md)) — never `PASS`, never
+`FAIL`.
+
+**Cost.** One piece of arithmetic per derived scenario, and an environmental threshold that
+must be re-derived when the workload changes.
+
+### G10 — The specification documented the defect as correct
+
+**Symptom.** A live defect, a suite that covers the exact behavior, and a specification
+that describes the defect accurately — as the contract.
+
+**Mechanism.** Every other entry in this catalogue describes a check that cannot fail. This
+one describes a check that **would** have failed and was corrected *toward* the bug.
+
+The path is ordinary and feels like diligence. A scenario is written. A run produces an
+unexpected observation. The author investigates, constructs a plausible mechanism for why
+the observation is legitimate, and writes it into the specification as a Note — often with
+a table, often with an instruction not to change it. The suite is then permanently blind,
+and the blindness is *documented*, which makes it far more durable than a weak assertion:
+the next author who notices the anomaly finds a prior explanation and moves on.
+
+A broadcast transport delivered duplicate frames whenever the publisher and subscriber were
+the same node. The specification recorded a placement table stating that two frames were
+"legal on this transport — do not fix it", and relaxed the count assertion to `>= 1`. The
+mechanism offered was real: the transport genuinely has at-most-once *arrival* semantics.
+It simply did not license the duplicate, which came from a missing self-filter. The product
+shipped the duplicate for months behind an accurate description of it.
+
+The diagnostic is **provenance, not plausibility**: was this explanation derived from the
+source, or from the observation? An explanation reverse-engineered to fit an observation
+will nearly always *be* plausible — that is the property it was constructed for
+([`05-provenance.md`](05-provenance.md)).
+
+**Rule.** A specification's expected values come from the contract — the code, the schema,
+the declared behavior. When a run contradicts the specification, the permitted outcomes are
+"the product is wrong" (file it) and "the contract is other than I believed" (**cite the
+contract**, not the run). An observation may never be its own justification. In review,
+treat every Note explaining why an observed value is acceptable as a diff-time question:
+*what is the citation?* Prose arguing an anomaly is fine, with no reference to the source,
+is the signature.
+
+**Cost.** Anomalies cost a source reading rather than an inference, and some stay open
+longer.
 
 ## H — Omission (the assertion nobody wrote)
 
