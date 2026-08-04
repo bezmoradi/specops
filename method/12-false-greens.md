@@ -232,6 +232,46 @@ never conservative — it is wrong in whichever direction the assertion points.
 **Cost.** Slower runs, and a floor someone must justify with a measurement rather than a
 guess.
 
+### B9 — The fixture emits the signal under test
+
+**Symptom.** An event scenario is green. It would stay green if the behaviour it names
+stopped emitting entirely — because the event it captures is published by the scenario's
+own **setup**, not by its stimulus.
+
+**Mechanism.** B2's remedy is "pin a field unique to this execution." That is necessary and
+here it is **not sufficient**, which is why this survives a corpus that already applies B2.
+The colliding message is not a leftover from a previous run and not a concurrent sibling's
+— it is produced by the harness, for the subject the scenario just minted, inside the same
+execution, moments before the stimulus. Every per-execution correlator matches it, because
+it genuinely belongs to this execution.
+
+Provisioning is the usual source: creating a user emits the account-lifecycle event, making
+an org "ready" pushes it through the same status transition the scenario is about to
+assert. With first-match-wins correlation the setup's copy is returned and the stimulus is
+never observed.
+
+Where it is merely a false *red* (setup and stimulus differ in some field — the reason, the
+new status) narrowing the predicate fixes it, and the failure is loud. The dangerous case
+is when the fixture's event is **indistinguishable**: same type, same subject, same
+discriminator. Then no predicate can separate them, the scenario passes on the setup's
+copy, and it is a permanent green over a dead feature. Four scenarios in one file, three
+false-red and one false-green, all from the same fixture.
+
+The false-red twin has teeth of its own: it lands on *inverted* scenarios, whose polls are
+deliberately broad (G1). There the fixture's event is captured, absence is contradicted,
+and a correct system is reported FAIL — so the strongest scenario in the file is the one
+most likely to be dismissed as flaky and weakened.
+
+**Rule.** Correlate per **step**, not per execution. Where the fixture can emit the target
+event, **drain it before the stimulus** and assert the real capture is a *different*
+emission — a distinct `event_id`, not merely a matching predicate. The drain is not
+bookkeeping: it doubles as a pre-stimulus positive control, and its absence is what makes
+the assertion vacuous. When auditing, ask **"what does my setup publish?"** — the answer is
+rarely in the specification, because provisioning is written as plumbing.
+
+**Cost.** Every event scenario needs its provisioning path audited for emissions, and the
+drain adds a poll to scenarios that already have one.
+
 ## C. Verdict laundering
 
 ### C1 — Re-run until green
@@ -483,6 +523,42 @@ absent, **assert it is absent first** rather than assuming
 
 **Cost.** An extra precondition check on scenarios that create things.
 
+### F5 — The check passes on an artifact from a previous run
+
+**Symptom.** A preflight or acquisition step reports success and exits 0. It did not
+succeed. The evidence it validated was written by an earlier run.
+
+**Mechanism.** Distinct from F2, and the distinction is the whole point: F2 fails
+*silently* — the probe returns nothing and the caller carries on. This one fails
+**loudly and is then overruled**. The acquisition step prints its error; the script does not
+abort (no `set -e`, or a helper that `return`s non-zero into a caller that ignores it); the
+assertion that follows reads a **persisted artifact** — a token file, a captured id, a
+cached manifest — left on disk by the last successful run, and finds it perfectly
+well-formed. So the run ends green on evidence it did not gather.
+
+Persistence is the mechanism. Anything the harness writes to a stable path and re-reads
+later can substitute for a failure: session tokens, `.run/` scratch, a downloaded fixture, a
+generated config. The assertion is usually correct in isolation — it checks a real property
+of a real artifact ("the token's role claim is admin") — and the property is *stable across
+runs*, which is exactly what makes the stale copy pass.
+
+What happens next depends on luck, not design. If the stale artifact has expired, downstream
+scenarios fail and get attributed to the product — expensive, but visible. If it is still
+valid, the suite runs to green against a **previous session's identity** and the broken
+acquisition is never discovered. We observed the first; the second is the same bug on a
+shorter clock.
+
+**Rule.** Acquisition failure is fatal — make it impossible for the assertion to run at all.
+Then assert **provenance, not just content**: that the artifact was produced by *this*
+execution (mtime newer than run start, a run id written into it, or simply deleting it
+before acquiring). A check on a persisted artifact that cannot distinguish "fresh" from
+"left over" is not a check. When porting a working script, re-verify its error handling at
+the destination: this arrived by copying a correct original into two repos and losing the
+hard exit on the way.
+
+**Cost.** Explicit failure propagation in shell helpers, and one freshness assertion per
+persisted artifact.
+
 ---
 
 ## G. Structural
@@ -640,6 +716,46 @@ of the scenario's premise, not as a pass.
 
 **Cost.** Witness setup and teardown on exactly the scenarios that are currently cheapest,
 which is why they were written this way.
+
+### G8 — A completeness claim over a silently truncated search space
+
+**Symptom.** An audit reports "no remaining occurrences", "all call sites updated", "nothing
+left to migrate" — and the count is wrong, because the tool that produced it never looked at
+part of the corpus and did not say so.
+
+**Mechanism.** G7 is a quantifier ranging over an **empty** set. This is a quantifier ranging
+over a set that is silently **smaller than the one being claimed about**. The claim is
+"across the repository, zero matches"; the evidence is "across the subset my tool chose to
+read, zero matches"; nothing in the output distinguishes the two, because a search that finds
+nothing and a search that looked nowhere print the same thing: nothing.
+
+The exclusions are almost always *someone else's* sensible default, invisible at the call
+site. A search wrapper that respects ignore files skips generated, vendored, and — critically
+— **ignored-but-present** working files. A linter honours inline suppressions. A coverage tool
+excludes a directory configured years ago. A test runner silently skips a suite whose fixture
+is missing. In each case the tool is behaving correctly and reporting honestly about a domain
+the caller never specified.
+
+Observed: a rename audit reported one remaining reference across six repositories. A second
+pass with a tool that had no ignore-file awareness found more than twenty, in files that were
+present, tracked by the task, and read by the runtime — they were merely *gitignored*, which
+the search treated as "does not exist". The first number was produced by a command that
+exited 0 and looked exhaustive.
+
+This is the failure mode of every *audit* rather than every *assertion*, so it escapes review:
+reviewers check what the scenario asserts, not what the tool that verified the migration was
+allowed to see.
+
+**Rule.** A completeness claim must state its **domain and its exclusions**, and the tool must
+be one whose exclusions you chose. Prefer a search that cannot skip (`/usr/bin/grep`, an
+explicit file walk) over a convenience wrapper, and **calibrate it**: plant a known match in a
+location you expect to be excluded and confirm the tool reports it. If you cannot say what the
+search excluded, you have a sample, not an audit. Where a zero result is load-bearing, report
+the **denominator** alongside it — "0 matches across 1,917 files" is auditable, "0 matches" is
+not.
+
+**Cost.** Slower exhaustive searches, and one calibration probe per audit tool — paid once,
+not per audit.
 
 ## H — Omission (the assertion nobody wrote)
 
