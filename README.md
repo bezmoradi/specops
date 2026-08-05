@@ -7,6 +7,16 @@ SpecOps is not a tool. There is nothing to install. It is a set of rules, templa
 prompts you copy into your own repository so that your coding agent writes, and later
 verifies, specifications for *your* system.
 
+## Table of Contents
+
+- [The problem](#the-problem)
+- [The method](#the-method)
+- [What is in this repository](#what-is-in-this-repository)
+- [Provenance, and an honest note about it](#provenance-and-an-honest-note-about-it)
+- [How to adopt this](#how-to-adopt-this)
+- [What this is not](#what-this-is-not)
+- [Security](#security)
+
 ---
 
 ## The problem
