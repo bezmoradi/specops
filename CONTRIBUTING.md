@@ -96,11 +96,10 @@ matched a sibling scenario's log line" is.
 - Changes to `templates/` should say which example you re-ran to confirm the template
   still produces a valid spec.
 
-## Code of conduct
+## Tone
 
-[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). In short: be straightforward and assume
-competence. Disagreement about a rule is the point of the repo; make the argument, cite the
-failure, and let the evidence settle it.
+Be straightforward and assume competence. Disagreement about a rule is the point of the
+repo; make the argument, cite the failure, and let the evidence settle it.
 
 ## Security
 
