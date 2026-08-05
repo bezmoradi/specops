@@ -124,6 +124,44 @@ unless something prevents it.
 - **Pin the bundles for any run that gated a promotion.** If a deploy proceeded because a
   run was green, the evidence for that decision should outlive the normal window.
 
+## The first run measures the suite, not the system — report it that way
+
+A new corpus has never been executed. Its first run is therefore not a verification of the
+product; it is the **acceptance test of the specifications**, and reporting it as though it
+were a product result is the most common way a suite starts its life lying.
+
+Two numbers make that honest, and both come out of the bundles for free:
+
+| Field | What it says |
+|---|---|
+| `self_defect_ratio` | failures caused by the specification ÷ total failures |
+| `unexecuted_share` | (`BLOCKED` + `INFRA`) ÷ total scenarios |
+
+A first run of a fresh corpus that reports `self_defect_ratio: 1.00` has established
+**nothing about the product** — every red was the author's. That is a normal and expected
+result, and it is useful precisely because it is stated. What is not acceptable is
+presenting the same run as "171 passing" and letting the reader infer the service was
+verified.
+
+The numbers from one measured trial, on a service specified from scratch by two independent
+authors:
+
+| | corpus A | corpus B |
+|---|---|---|
+| Scenarios | 71 | 458 |
+| `PASS` | 52 | 171 |
+| `self_defect_ratio` | 0.80 (4 of 5) | **1.00 (61 of 61)** |
+| `unexecuted_share` | 0.03 | **0.42** |
+
+Corpus B's author reported it in one sentence — *"this run measured my suite far more than
+it measured the service"* — which is the correct reading and the one a bare pass count
+destroys. Note also which corpus looks better by pass *count* and which by pass *rate*:
+B passes 171 scenarios to A's 52, and establishes less.
+
+**These ratios should improve on every subsequent run and never return to their first-run
+values.** A mature suite whose `self_defect_ratio` climbs back toward 1.00 is not finding
+product defects; it has started drifting from the system it describes.
+
 ## What this unlocks
 
 Once bundles exist, several things that were manual become mechanical:

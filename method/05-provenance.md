@@ -46,6 +46,47 @@ you have.
 Both belong in a suite. `@contract` assertions are cheaper, more numerous, and carry most
 of the regression value. `@intent` assertions are the ones that make the oracle claim true.
 
+## The second axis — where the VALUE came from
+
+The table above answers *where the requirement came from*. There is a second, independent
+question that decides whether an assertion can be trusted on its first run: **where the
+expected value came from.**
+
+| Marker | The value was | Trustworthy on run 1 |
+|---|---|---|
+| `observed` | seen coming out of a running system at least once | yes |
+| `derived` | read out of the implementation, a schema, a document, or inferred from a field name | **no** |
+
+The two axes are orthogonal, and the combination that looks safest is the dangerous one: a
+`@contract` assertion is *supposed* to come from reading the implementation, so nothing
+about it signals that its value has never been witnessed.
+
+**This rule is stated in [`12-false-greens.md`](12-false-greens.md) D3, and stating it is
+demonstrably not enough.** In a trial where two independent authors specified the same
+service from source with no system contact, both asserted a cookie attribute of `Max-Age=-1`
+where the service emits `Max-Age=0` — an identical unforced error. One of them had gone
+further: it *flagged its own D3 exposure in writing before executing*, listing the
+assertions it had inferred from defensive branches it had never run. **Every one of those
+flagged assertions failed on first contact.** The author knew the rule, agreed with it,
+predicted the failure, and still shipped it, because nothing in the document made an
+unwitnessed value *look* different from a witnessed one.
+
+**So mark it, and count it.** Emit the derived total before the first run — "412 of 2,734
+assertions have never been observed" is a number an author acts on. A per-assertion tag is
+enough:
+
+```
+status == 403                    # observed
+body.code == "SSO_ERROR"         # observed
+set_cookie.max_age == -1         # derived — from the handler's constant, never witnessed
+```
+
+After a run, every value that was exercised converts to `observed`. What remains derived
+after several runs is either dead scenarios or the part of the corpus that has never
+actually been tested — both worth seeing.
+
+**Cost.** One marker per asserted value, and a mechanical pass that flips them after a run.
+
 ## Tagging
 
 Mark provenance at the scenario level, and at the assertion level where a scenario mixes

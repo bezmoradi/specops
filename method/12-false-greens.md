@@ -911,6 +911,19 @@ treat every Note explaining why an observed value is acceptable as a diff-time q
 *what is the citation?* Prose arguing an anomaly is fine, with no reference to the source,
 is the signature.
 
+**The pattern is not confined to specifications — the source itself does it, and there the
+specification inherits the error.** A subsequent trial found a comment block asserting five
+times that the standard library "has ALREADY written the 413 Payload Too Large response."
+It does not; that function writes no response at all. The fifth assertion was the decision
+— *"we do NOT do that retrofit in this pass, the wire is correct"* — so a review finding was
+closed on a premise that was never checked, and oversized requests returned an unhandled
+`500` for as long as the comment stood. Two independent authors specifying that service
+found it from source; the maintained suite, which had been asserting `413` correctly against
+*application*-level caps for years, had never probed the transport-level one.
+
+When a specification's expected value is justified by a code comment, the comment is a
+claim, not a citation. Cite the code that runs.
+
 **Cost.** Anomalies cost a source reading rather than an inference, and some stay open
 longer.
 

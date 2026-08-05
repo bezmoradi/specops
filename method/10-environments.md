@@ -68,6 +68,44 @@ fixtures:
   permanent_accounts: ["acct_0001", "acct_0002"]
 ```
 
+## Observation capability — declare it before authoring, not during the run
+
+The binding says how to *reach* the system. It must also say what you can **see** of it,
+because that decides which scenarios are worth writing at all.
+
+A side-effect assertion needs a channel: application logs, a metrics backend, the
+datastore, a subscribed queue for published events. Those channels are environment
+properties, and in a shared or restricted environment several are usually absent. Declaring
+them is cheap. Discovering them mid-run is not.
+
+```yaml
+observe:
+  logs:        false   # cluster unreachable from the runner's network position
+  metrics:     false   # no query path
+  datastore:   true    # read-only credentials, us-east-2
+  events:      false   # nothing subscribes to the two publish topics
+  correlation: false   # responses carry no request id
+```
+
+**The rule: a scenario is not written until the capability it depends on exists.** An
+assertion against an absent channel is not a pessimistic scenario — it is an unrunnable one,
+and it will report `BLOCKED` forever while counting as coverage in every summary that
+totals scenarios.
+
+The cost of skipping this is not marginal. In one measured trial, an author produced 458
+scenarios against a service and **176 came back `BLOCKED` on the first run — 38% of the
+corpus** — because they assumed an event sink, log correlation and a second tenant's
+second-factor secret, none of which existed. None of that was a surprise the environment
+sprang on them; all of it was knowable on day one from a manifest nobody was asked to
+write. A second author on the same service, same day, same method, sized to what was
+actually reachable and finished with **2 `BLOCKED`**.
+
+Where a channel is missing but the behavior still matters, that is what `N/A` is for
+([`02-verdicts.md`](02-verdicts.md)) — a declared blind spot, counted separately, never as
+passing. The failure this section prevents is the *undeclared* one: a scenario written as
+though the channel exists, discovered at run time, and then silently amortised into a
+`BLOCKED` pile that nobody reads.
+
 ## Safety class
 
 **The environment declares whether it may be mutated. The runner enforces it.**

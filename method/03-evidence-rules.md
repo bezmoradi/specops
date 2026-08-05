@@ -171,6 +171,48 @@ Stated in full in [`05-provenance.md`](05-provenance.md).
 **Failure mode without it:** a suite that believes it is verifying intent while verifying
 "the system still does what it did last month."
 
+**Provenance has a second axis — whether the expected *value* was ever observed, or only
+read out of the source.** Also in [`05-provenance.md`](05-provenance.md), and it is the one
+that decides whether a brand-new scenario can be trusted on its first run.
+
+## R7 — Assert the premise, not only the outcome
+
+**A scenario whose setup silently fails to establish what it claims will report a product
+defect. Assert the precondition inside the scenario so the failure is attributed to the
+fixture instead.**
+
+A `requires` block establishes that a fixture *exists*. It does not establish that the
+fixture has the *property* the scenario depends on. That gap is where misattribution lives:
+the setup runs, everything appears provisioned, and the scenario tests something other than
+what it says.
+
+```
+# Scenario: a permission above the caller's ceiling is refused.
+assert  catalog[{{PERM_ID}}].delegatable == false   # PREMISE — else this proves nothing
+assert  status == 403
+assert  body.code == "PERMISSION_ABOVE_CEILING"
+```
+
+Without the first line, a fixture that turns out to be *delegatable* produces a `200`, and
+the scenario reports that the ceiling is broken. With it, the same run reports that the
+fixture was wrong — which is true, cheap to fix, and does not send anyone to read
+authorization code.
+
+This is not hypothetical arithmetic. In one measured run of a freshly authored corpus,
+**14 of 61 failures were preconditions that were never established**, each presenting as a
+product failure. A second corpus on the same service carried premise assertions and caught
+its one occurrence correctly on the first try.
+
+**Where to use it:** any scenario whose meaning depends on a property of seeded data — a
+role that must lack a permission, an account that must be unverified, an organization that
+must have no subscription, a queue that must start empty.
+
+**Failure mode without it:** every hour spent investigating a product defect that was a
+fixture, and the credibility cost of reporting one.
+
+**Cost.** One assertion per assumed property, and you must know what your fixtures actually
+are.
+
 ---
 
 # The grammar
