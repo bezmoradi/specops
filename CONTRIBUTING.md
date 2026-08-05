@@ -105,5 +105,5 @@ repo; make the argument, cite the failure, and let the evidence settle it.
 
 If a change to a prompt, template, or example could lead someone's agent to mutate a
 protected environment or capture a credential into a bundle, that is a security issue rather
-than a style issue — see [`SECURITY.md`](SECURITY.md). Nothing here executes, but everything
-here is executed *by* something with credentials.
+than a style issue — see [Security](README.md#security). Nothing here executes, but
+everything here is executed *by* something with credentials.

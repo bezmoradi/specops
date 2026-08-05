@@ -166,6 +166,55 @@ Full walkthrough: [`adoption/getting-started.md`](adoption/getting-started.md).
 - **Not vendor-specific.** Nothing in `method/` names a cloud, a model, or a log
   aggregator. Those live in `examples/` and your own environment bindings.
 
+## Security
+
+**This repository ships no executable code** — no package, no binary, no CLI, no
+dependencies. Nothing here runs, so there is no dependency tree to advisory-scan. That does
+not make the security surface zero; it moves it.
+
+What this repository publishes is **instructions that people give to AI agents holding
+production credentials.** An adopter hands their agent [`prompts/execute-specs.md`](prompts/execute-specs.md),
+an environment binding, and access to a deployed system, and the agent then sends requests,
+reads stores, publishes events, and in some scenarios writes state through escape hatches.
+Every guardrail that keeps that from being reckless is *textual*, and lives here:
+
+| Guardrail | Where | What it prevents |
+|---|---|---|
+| The `safety` class (`mutable` / `read-only` / `forbidden`) | [`method/10-environments.md`](method/10-environments.md) | A mutating scenario running against production |
+| Escape hatches confined to `requires`/`teardown`, and to `mutable` environments | [`method/04-spec-altitude.md`](method/04-spec-altitude.md) | Arbitrary state writes normalised as a technique |
+| Channel direction (`inject` / `observe` / `do-not-touch`) and least-privilege executors | [`method/10-environments.md`](method/10-environments.md) | A harness that damages the system it measures |
+| Redaction at capture, not at display | [`method/08-evidence-bundles.md`](method/08-evidence-bundles.md) | Credentials persisted into bundles and committed |
+
+**A defect in any of those is a security defect in this project, even though no code is
+involved.** Worth reporting: anything that would lead an agent to mutate a `read-only` or
+`forbidden` environment; anything that captures a credential or personal data into a bundle
+unredacted; any instruction readable as authorising an agent to widen its own access or work
+around a `safety` class rather than stopping and reporting. **A phrasing an adopter's agent
+could plausibly misread in the dangerous direction counts, even when the correct reading is
+available** — these prompts are executed by models, not parsed by compilers, and "a careful
+reader would understand" is not a control.
+
+Out of scope: vulnerabilities in *your* system found by running these specifications, or in
+the agent, model, runner or CI platform you execute them with. Prompt injection through your
+own data is real but is a property of your harness — see the
+[threat model](method/01-overview.md#threat-model), which states plainly what this method
+does and does not defend against. **A fabricated evidence bundle is not defended against;
+that is documented, not a finding.**
+
+To report, use GitHub's [private vulnerability reporting](https://github.com/bezmoradi/specops/security/advisories/new)
+for anything you would rather not raise in public; otherwise open a normal issue, since most
+findings here are a clarification everyone benefits from reading. Include the file, the line,
+and the concrete misuse it enables — which environment gets mutated, which credential leaks,
+which guardrail is bypassed. A specific scenario is worth more than a severity rating. There
+is a single maintainer and no service-level commitment; expect acknowledgement rather than
+immediacy.
+
+Because nothing is published as a package there is no version to pin and no advisory to
+consume — fixes land as commits. If you have vendored this into your own repository, which
+is the intended use, you are the one who has to re-sync, and
+[`method/09-gates.md`](method/09-gates.md) is the argument for gating that statically rather
+than remembering to.
+
 ## Status
 
 **v0 — the method is stable enough to use and not yet stable enough to freeze.**
