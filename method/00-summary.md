@@ -146,7 +146,7 @@ replay, and human bundle audit. Know their limits rather than over-reading rule 
 
 | | |
 |---|---|
-| **[`12-false-greens.md`](12-false-greens.md)** | **The catalogue — 43 ways a green suite lies to you.** If you read one more page, read this one. |
+| **[`12-false-greens.md`](12-false-greens.md)** | **The catalogue — 45 ways a green suite lies to you.** If you read one more page, read this one. |
 | [`01`](01-overview.md)–[`04`](04-spec-altitude.md) | The core argument: classification, verdicts, rules, altitude |
 | [`05`](05-provenance.md)–[`07`](07-isolation.md) | Oracle versus regression net; evidence selection; running in parallel |
 | [`08`](08-evidence-bundles.md)–[`11`](11-economics.md) | Operationalizing: auditability, gates, portability, cost |

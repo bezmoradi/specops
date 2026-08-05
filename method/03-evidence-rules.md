@@ -145,6 +145,32 @@ own outcome — never folded into `PASS` ([`02-verdicts.md`](02-verdicts.md)).
 **Failure mode without it:** either constant false reds that train the team to ignore the
 suite, or an undisciplined retry policy that lets regressions through.
 
+### Re-derive budgets after the first run — but only in the direction you measured
+
+Authored budgets are guesses, and they are consistently guesses in one direction. Measured
+across two first runs: a class authored at 60 s resolved in **1.1 s**, another authored at
+20 s resolved in **2 s**, and a cross-service class was ~20× wider than anything observed.
+Nobody under-estimates; everybody pads. So run 1 should re-derive every class from its
+recorded attempt counts, and the bundles already carry what you need
+([`08-evidence-bundles.md`](08-evidence-bundles.md)).
+
+**The trap is tightening the ones you did not measure.** A fast happy path tells you how
+long a *positive* observation takes. It tells you **nothing** about a bracket that exists to
+prove something did *not* happen, because that budget must cover the interval of the event
+you never saw — a redelivery, a retry, a scheduled sweep.
+
+One author did this correctly and its reasoning is the rule: it cut the positive classes
+from 60 s to 20 s on measured evidence, and **deliberately left the redelivery bracket at
+60 s**, on the ground that no duplicate had been observed, so that interval remained
+unmeasured. Shrinking it because the happy path is fast is precisely how an inverted
+assertion inherits a budget calibrated on the opposite error mode
+([`12-false-greens.md`](12-false-greens.md) B8).
+
+**So:** tighten a class only when run evidence bounds *that class's* slowest case. For an
+inverted assertion, the evidence you need is an observation of the thing you are asserting
+the absence of — which by construction you do not have. Leave it wide, and say in the
+specification that it is unmeasured.
+
 ---
 
 ## R5 — Write at an altitude that survives refactoring

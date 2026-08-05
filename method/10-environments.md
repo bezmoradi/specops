@@ -87,6 +87,80 @@ observe:
   correlation: false   # responses carry no request id
 ```
 
+### Availability is not permission — declare the direction too
+
+**A channel can be readable and still be destructive to read.** `true` answers "can I reach
+it"; it does not answer "may I, without changing the system under test". Those are different
+questions and conflating them is how a harness damages the thing it is measuring.
+
+The failure is concrete. A manifest that said `events: true` — meaning a queue was reachable
+— was read by two independent authors as licence to *subscribe*. One of them checked, and
+found the queue in question was produced **and consumed by the service itself**: a harness
+`ReceiveMessage` takes messages away from the real consumer, and a delete destroys audit
+data. The manifest was accurate about reachability and silent about the only thing that
+mattered.
+
+So give every channel a direction, not a boolean:
+
+```yaml
+channels:
+  fanout_queue:   inject        # publish into it; nothing else consumes it
+  audit_queue:    do-not-touch  # the service is its own consumer — a receive steals messages
+  audit_store:    observe       # read-only; this is the evidence path for audit assertions
+  config_store:   observe
+  metrics:        unreachable
+```
+
+| Direction | Meaning |
+|---|---|
+| `inject` | The harness may put work in. Nothing in production depends on consuming it. |
+| `observe` | Read-only. Reading changes nothing. |
+| `do-not-touch` | Reachable, and reading or draining it perturbs production behaviour. |
+| `unreachable` | No path from the runner. |
+
+**Default a shared channel to `do-not-touch` until someone establishes otherwise.** The
+question to answer for each one is not "can I read this" but **"who else is consuming it,
+and what happens to them if I do?"** For a queue that is nearly always the deciding question,
+because a competing consumer is invisible from the outside — the messages simply stop
+arriving somewhere else.
+
+## Throughput budget — the environment decides how big the corpus can be
+
+Declare what the environment will actually let you do, in the binding, next to the channels:
+
+```yaml
+throughput:
+  write_budget:   60/min     # cluster-wide, keyed by client IP — the harness is ONE key
+  read_budget:    600/min
+  concurrency:    1          # lanes within a tier share the bucket, so they do not help
+```
+
+This is not a performance note. It is a **hard bound on corpus size**, and it belongs beside
+the preconditions because it determines what can be authored at all.
+
+Two trials make the point by contrast. In one, the subject had no meaningful write budget;
+two independent authors following identical guidance produced **67 and 458 scenarios** — a
+factor of 6.8 — and 176 of the larger corpus could not execute. In the other, the subject
+enforced 60 writes/minute cluster-wide keyed by client IP, with the whole harness behind one
+IP. Both authors independently worked out that **a corpus enumerating routes cannot finish
+inside its own rate limit**, both reorganised around behaviour contracts instead of routes,
+and they landed on **92 and 90 scenarios** — 2% apart.
+
+The method tells you what to test. **It does not tell you how much, and the environment
+often does** — but only if someone writes the budget down. Where it was declared, two
+strangers converged; where it was not, one of them authored a corpus that could not run.
+
+Derive and record the arithmetic, the same way a regime precondition is derived:
+
+```
+write_budget 60/min ÷ (mutations per scenario ≈ 4) ≈ 15 mutating scenarios/min
+target run ≤ 30 min  →  ceiling ≈ 200 mutating scenarios after teardown overhead
+```
+
+If the corpus you want exceeds the ceiling, that is a decision to make **before** authoring
+— narrow the unit of coverage, or get the budget raised — not a discovery to make on the
+first run when the throttle starts answering your assertions.
+
 **The rule: a scenario is not written until the capability it depends on exists.** An
 assertion against an absent channel is not a pessimistic scenario — it is an unrunnable one,
 and it will report `BLOCKED` forever while counting as coverage in every summary that

@@ -312,6 +312,48 @@ prevent?"** — the mirror of B9's "what does my setup publish?"
 **Cost.** The author must read the handler's control flow, not just its contract. B9 costs
 you the provisioning path; this costs you the branch order.
 
+### B11 — A malformed stimulus the system absorbs in silence
+
+**Symptom.** Every scenario in a lane fails identically, and the specifications look
+correct. Meanwhile something downstream is quietly accumulating damage.
+
+**Mechanism.** B10 covers a *setup* that stops the code under test from running. This is the
+stimulus doing it. The harness sends a request, a message, or an event in the wrong shape,
+and the receiving system neither rejects it nor processes it — it accepts the bytes, decodes
+them into a zero value, finds no handler, and disposes of them by a path nobody is watching.
+
+Wire formats with permissive decoders are where this lives. A JSON envelope wrapped one
+layer deeper than expected still unmarshals into the target struct — every field simply
+comes out empty. An event with an empty `event_type` matches no handler. A queue's policy
+for an unrecognised event is often "leave it for redelivery, then the dead-letter queue,"
+which is correct behaviour and completely silent from the outside.
+
+The result is a lane of identical reds, which is at least loud. What is not loud is the side
+effect: one such run put six malformed messages onto a durable queue, each of which would be
+redelivered until it landed in the DLQ. The author was debugging their assertions while
+filling a dead-letter queue with traffic that looked, to anyone reading it later, like a
+product incident.
+
+The reason it is hard to diagnose from the verdicts alone: **a wrong-stimulus failure and a
+dead-consumer failure are observationally identical.** Both produce "the effect never
+appeared." A `hold` or an absence assertion is *satisfied* by a stimulus that never arrived,
+so the same defect makes positive scenarios red and inverted scenarios green.
+
+**Rule.** Before the first publish into any asynchronous transport, **read the consumer's
+parse path** and confirm the exact envelope it expects — including the transport's own
+wrapping, which is usually a subscription setting rather than anything visible in the
+producer's code. Wrapping is the field to check: raw delivery versus a notification envelope
+is one boolean on the subscription and it is invisible from both ends.
+
+The general form: **when the failure mode of a wrong stimulus is silent, verify the stimulus
+shape against the receiver before sending, not against the sender.** Where a receipt exists
+— a log line, a counter, a stored row that proves *arrival* independent of processing —
+assert it first in the lane, so an envelope error reports as "nothing arrived" rather than
+as six unrelated behavioural failures.
+
+**Cost.** One reading of the consumer per transport, and one arrival-receipt scenario placed
+first in each asynchronous lane.
+
 ## C. Verdict laundering
 
 ### C1 — Re-run until green
@@ -527,6 +569,50 @@ shipping it. If the answer is PASS, the oracle is decorative. Three properties r
 
 **Cost.** Every derived oracle needs an explicit refutation check against its own target
 mutation, recorded in the specification beside the derivation.
+
+### E5 — The discriminator does not discriminate
+
+**Symptom.** A negative scenario passes. The rejection it observed was produced by something
+other than the thing it was written to test.
+
+**Mechanism.** E1 is an assertion too weak to pin a value. This is the opposite shape and it
+survives every rule aimed at E1: the assertion is exact, the value is a stable token, the
+correlator is right, and the scenario still proves nothing — because **two different causes
+produce the same observable.**
+
+Validation surfaces are where this concentrates, since a single `VALIDATION_FAILED` token
+usually covers every field on the request. A scenario that sends a deliberately bad *URL* to
+prove URL validation exists will pass just as green when the *name* was also invalid, or
+when a required field was missing, or when the body failed to decode. It will pass if URL
+validation is deleted entirely, provided anything else about the fixture is wrong.
+
+This is what makes it worse than under-assertion: the scenario is *more* likely to pass as
+the fixture degrades. Fixture drift usually produces reds, which get investigated. Here it
+produces greens.
+
+It was caught in a live run only because a neighbouring scenario in the same file failed
+first and forced the fixture to be re-derived; the author then noticed that the passing
+sibling could not have distinguished its own cause. Nothing about the scenario, read on its
+own, looked weak.
+
+**Rule.** A negative scenario must assert something that **separates its intended cause from
+its neighbours**. In order of preference:
+
+1. A cause-specific code or field path (`body.errors[0].field == "url"`), where the API
+   offers one.
+2. A **paired control**: the same request with the intended defect removed and every other
+   property identical must be *accepted*. If both requests are rejected, the scenario is
+   uninformative and says so.
+3. Where neither is available, record the limitation in the scenario. A negative test on a
+   surface with one undifferentiated error token verifies "this request was refused", not
+   "this request was refused **for this reason**" — and the specification should not claim
+   the second.
+
+When auditing, the question is: **"what else, changed in my fixture, would produce this
+same green?"** If the answer is "several things", the scenario is measuring the fixture.
+
+**Cost.** Either an API that distinguishes its rejection reasons, or a second request per
+negative scenario.
 
 ---
 
