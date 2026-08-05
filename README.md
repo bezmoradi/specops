@@ -214,16 +214,3 @@ consume — fixes land as commits. If you have vendored this into your own repos
 is the intended use, you are the one who has to re-sync, and
 [`method/09-gates.md`](method/09-gates.md) is the argument for gating that statically rather
 than remembering to.
-
-## Status
-
-**v0 — the method is stable enough to use and not yet stable enough to freeze.**
-Page numbers in `method/` are intended to be citable; they will not be renumbered without
-a deprecation note. Everything else may change.
-
-Contributions, and especially disagreements backed by a concrete failure, are welcome —
-see [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## License
-
-MIT.
