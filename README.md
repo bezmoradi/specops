@@ -16,6 +16,8 @@ verifies, specifications for *your* system.
 - [How to adopt this](#how-to-adopt-this)
 - [What this is not](#what-this-is-not)
 - [Security](#security)
+- [Author](#author)
+- [License](#license)
 
 ---
 
@@ -224,3 +226,11 @@ consume — fixes land as commits. If you have vendored this into your own repos
 is the intended use, you are the one who has to re-sync, and
 [`method/09-gates.md`](method/09-gates.md) is the argument for gating that statically rather
 than remembering to.
+
+## Author
+
+This project is maintained by [Bez Moradi](https://github.com/bezmoradi)
+
+## License
+
+SpecOps is licensed under [MIT](https://github.com/bezmoradi/specops/blob/main/LICENSE)
