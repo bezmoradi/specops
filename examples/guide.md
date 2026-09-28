@@ -77,9 +77,11 @@ into a red that *looks* like a product failure. Bridge through `customer_id` ins
 
 **Private sink.** `specops-sink-billing` is subscribed alongside the real billing consumer.
 Fan-out gives it its own copy, so the suite reads the event **as published** without racing
-the real consumer. It **peeks** rather than consumes, so parallel lanes can share it —
-which means a broad predicate will keep re-matching an old message. Always pin a
-per-execution-unique field.
+the real consumer. It never consumes a non-matching message, so parallel lanes can share
+it — which means a broad predicate will keep re-matching an old message. Always pin a
+per-execution-unique field, and floor each read at the service's clock, taken just before
+the stimulus. Its survey receives rotate a 3s lease rather than peeking, so a deep queue is
+still covered.
 
 **Boundary.** A sink capture proves *publish*, not *delivery*. Where the point is that the
 consumer acted, assert the consumer's observable outcome too.
@@ -252,9 +254,9 @@ OT1's whole captured response rather than re-asserting three fields. Assert them
 independently and both stay green while an extra field or a divergent header reintroduces
 the oracle.
 
-### The sink peeks, so broad predicates match old messages — except for absence
+### The sink keeps non-matches, so broad predicates match old messages — except for absence
 
-`specops-sink-billing` does not drain non-matching messages. For a **presence** assertion, a
+`specops-sink-billing` never deletes a non-matching message. For a **presence** assertion, a
 predicate matching only `event_type == "order.created"` keeps matching the oldest lingering
 message for as long as the topic retains it — including on a run where nothing was
 published.

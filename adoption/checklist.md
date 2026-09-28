@@ -48,6 +48,10 @@ the suite as a whole, quarterly.
       response block.
 - [ ] Every side-effect assertion pins a **per-execution-unique** correlator.
 - [ ] No correlator is a time window.
+- [ ] Every sink read is floored at the **server's** clock, taken just before the stimulus,
+      and no verdict depends on a delete having happened.
+- [ ] The sink survey rotates a short lease rather than peeking, and records distinct
+      messages surveyed against the queue depth.
 - [ ] **Presence** assertions: no predicate is broad enough to match a previous execution's
       leftovers.
 - [ ] **Absence** assertions: the predicate is **broad** over a unique subject — a narrow
@@ -71,8 +75,9 @@ the suite as a whole, quarterly.
       legitimate owner reads the seed through the product and gets `200`, before anyone
       asserts it is unreachable.
 - [ ] Every `absent through` assertion has a `control` block.
-- [ ] The control is of the **correct kind** — same-subject (identical predicate, drained,
-      count-of-survivors) or proxy (different predicate, not drained, residual gap stated).
+- [ ] The control is of the **correct kind** — same-subject (identical predicate,
+      server-clock floor past it, count-of-survivors) or proxy (different predicate, no
+      floor needed, residual gap stated).
 - [ ] The control is **bracketed** — re-asserted after the absence poll — or the residual
       window is stated.
 - [ ] A failed control is `FAIL` reason `control`, never `INFRA`.

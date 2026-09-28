@@ -170,13 +170,38 @@ private consumer to the topic, alongside the real ones. Fan-out gives every subs
 own copy, so the suite reads **the event as published** without racing the real consumer
 and without depending on another service's log text.
 
-Two disciplines:
+Four disciplines. The last three exist because parallel lanes share one sink: every lane
+reads the same queue, and a queue that leases each received message to one reader for a
+while behaves differently under concurrent readers than under one.
 
 - **Pin a per-execution-unique field.** A predicate matching only on event type will match
   a *previous* execution's lingering message for as long as the topic retains it.
-- **Know whether your read consumes or peeks.** A peeking sink leaves non-matching messages
-  visible and accumulating; a consuming sink can be drained by a sibling. Both are workable;
-  the specification must know which.
+- **Floor every read at the server's clock, taken just before the stimulus.** Only evidence
+  stamped at or after the floor may match. This is the freshness bound above, applied to
+  the sink; it composes with the correlator and never replaces it. Take the floor from the
+  clock that stamps the events — the `Date` header of one of the service's own responses,
+  for instance — never the harness's clock, whose skew moves the floor silently. Where setup
+  may have emitted a same-shaped event, let that clock move more than one stamp granularity
+  past setup before reading the floor; for whole-second stamps, two seconds also absorbs
+  skew between replicas. Without the floor, the setup's own event
+  ([`12`](12-false-greens.md) B9) or an earlier attempt's copy (B5) satisfies the correlator
+  and is returned first — silently.
+- **Never make a verdict depend on a delete.** A leasing queue honours a delete only when it
+  carries the delivery token of the *latest* receive. Once a sibling has received the same
+  message, your delete may do nothing and still report success. "Drain the setup's event,
+  then assert on the next one" is therefore not an operation under concurrent readers: the
+  drained message is still there to be matched. A capture may delete its own match as
+  housekeeping. Noticing: search the corpus for a drain that precedes an assertion — each
+  one is a floor that has not been written yet.
+- **Survey by rotating a short lease, never by a zero-lease peek.** A receive that leases
+  nothing keeps returning the front of the queue, so once the queue is deep a survey
+  plateaus below the queue depth however long it polls. Receive with a lease of a few
+  seconds and do not delete: what was just read is hidden, the next receive returns
+  different messages, and siblings see every message again when the lease lapses. Record
+  distinct messages surveyed against the queue depth when the poll started. A presence poll
+  that stops short reports a false `FAIL` — loud. An absence poll that stops short has not
+  observed absence: it is `FAIL` with that reason, never `PASS`, because a pass there is
+  silent.
 
 **A sink capture proves publish, not delivery.** Where the point is that the consumer acted,
 assert the consumer's observable outcome too.
@@ -271,13 +296,14 @@ explained by "the feature works" and "the pipeline is dead" — and the scenario
 |---|---|---|
 | When | The subject can legitimately emit this event type | The target event is producible **only** by violating the property under test |
 | Predicate | Identical to the absence predicate | Necessarily different |
-| Mechanics | Produce → capture → **drain** → then act. Count-of-survivors: correct ⇒ 0, regression ⇒ 1 | Produce over a parallel path; **no drain** — the control event can never match the absence predicate |
+| Mechanics | Produce → capture → **server-clock floor** past it → then act. Count-of-survivors (matches stamped at or after the floor): correct ⇒ 0, regression ⇒ 1 | Produce over a parallel path; **no floor needed** — the control event can never match the absence predicate |
 | Proves | The exact predicate matches when it should | The pipeline is live end-to-end |
 | Residual gap | None material | Routing for the *target key* is unproven — a dead partition or mis-scoped subscription filter passes both |
 
 Most authorization and tenancy scenarios need a **proxy** control: the only way to produce
 `order.cancelled` for order X is to cancel order X, which is the thing that must not happen.
-The count-of-survivors framing does **not** apply there, and neither does draining.
+The count-of-survivors framing does **not** apply there, and neither does flooring past the
+control.
 
 **When you use a proxy control, state the residual gap in the specification.** A proxy
 control must traverse every routing-relevant component — same topic, same subscription, same
@@ -296,7 +322,7 @@ Either **bracket** — run the control again after the absence poll and assert i
 ```
 setup:    provision a per-execution-unique subject; mint {{MARKER}}
 control:  produce a real event over the control path; assert it fired
-          (same-subject: capture and drain · proxy: no drain)
+          (same-subject: capture, then floor past it · proxy: no floor needed)
 request:  perform the should-be-silent action
 expect:   event(...) where any_field contains {{MARKER}}   absent through <budget>
 control:  re-assert the control path still fires        ← bracket

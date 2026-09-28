@@ -151,9 +151,10 @@ why the constraints below are what they are.
 >    past. Mint a marker into the stimulus and match it anywhere in the event.
 > 3. **A `control` block** proving the observation path is live — of the right kind:
 >    - *same-subject* if the subject can legitimately emit this event type (identical
->      predicate; capture and drain);
+>      predicate; capture it, then set a server-clock floor past it for every later read —
+>      never drain it);
 >    - *proxy* if the target event is producible only by violating the property under test
->      (different predicate; nothing to drain; **state the residual gap**).
+>      (different predicate; nothing to exclude; **state the residual gap**).
 >
 >    Bracket it — re-assert the control after the absence poll — or state the residual
 >    window.
