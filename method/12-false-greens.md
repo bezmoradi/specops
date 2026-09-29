@@ -217,17 +217,24 @@ scenarios silently inherit a budget chosen for a different error mode. The budge
 routinely mis-modelled as "how long the publish takes", when what it must cover is *how
 long until the survey has covered the backlog* — a peek-style read that samples a subset of
 partitions can miss a message that has been sitting there the whole time, for many rounds,
-once the queue is deep.
+once the queue is deep. A zero-lease peek makes that structural rather than a matter of
+budget: it keeps returning the front of the queue, so coverage plateaus below the depth
+however long the poll runs.
 
 Observed shape: a 25s budget on a shared async sink produced **5 false FAILs across 4
 lanes in a single run**, each costing a re-run to disprove. The same 25s sat unexamined on
 the inverted scenarios in that suite, where it had never produced a symptom of any kind.
+In a later 12-lane run a look-only survey covered 59–86 of the 109–121 queued events in
+60s and produced four more false FAILs; with a rotating 3s lease and three receivers, one
+20s pass covered 118 of 120.
 
 **Rule.** Derive the budget from the *observation path's* worst case (queue depth ×
 sampling behaviour), not from the producer's latency; state it as a floor in the method
 rather than per-scenario; and treat any inverted assertion whose budget was inherited from
 a positive one as unverified until the floor is applied. A budget that is too short is
-never conservative — it is wrong in whichever direction the assertion points.
+never conservative — it is wrong in whichever direction the assertion points. No budget
+repairs a survey that cannot reach the backlog: rotate a short lease
+([`06-side-effects.md`](06-side-effects.md#the-private-sink-pattern)).
 
 **Cost.** Slower runs, and a floor someone must justify with a measurement rather than a
 guess.
@@ -263,14 +270,21 @@ and a correct system is reported FAIL — so the strongest scenario in the file 
 most likely to be dismissed as flaky and weakened.
 
 **Rule.** Correlate per **step**, not per execution. Where the fixture can emit the target
-event, **drain it before the stimulus** and assert the real capture is a *different*
-emission — a distinct `event_id`, not merely a matching predicate. The drain is not
-bookkeeping: it doubles as a pre-stimulus positive control, and its absence is what makes
-the assertion vacuous. When auditing, ask **"what does my setup publish?"** — the answer is
-rarely in the specification, because provisioning is written as plumbing.
+event, **capture it before the stimulus, then set the server-clock floor past it**
+([`06-side-effects.md`](06-side-effects.md#the-private-sink-pattern)), and assert the real
+capture is a *different* emission — a distinct `event_id`, not merely a matching predicate.
+The pre-stimulus capture is not bookkeeping: it doubles as a pre-stimulus positive control,
+and its absence is what makes the assertion vacuous. When auditing, ask **"what does my
+setup publish?"** — the answer is rarely in the specification, because provisioning is
+written as plumbing.
+
+An earlier version said to *drain* the fixture's event. Under concurrent readers a drain can
+silently do nothing, which leaves the fixture's copy on the queue for first-match-wins to
+return — the exact collision the rule exists to prevent. The floor does not depend on a
+delete taking effect.
 
 **Cost.** Every event scenario needs its provisioning path audited for emissions, and the
-drain adds a poll to scenarios that already have one.
+pre-stimulus capture adds a poll to scenarios that already have one.
 
 ### B10 — The setup that prevents the code under test from running
 
@@ -746,9 +760,9 @@ event can only be produced by violating the property under test, so no legitimat
 produces a matching event. Two kinds exist and they are not interchangeable:
 
 - **Same-subject control** — the subject may legitimately emit this event type. Identical
-  predicate; capture and drain; count-of-survivors applies.
+  predicate; capture, then set the server-clock floor past it; count-of-survivors applies.
 - **Proxy control** — the target event is producible only by violating the property. The
-  predicate necessarily differs, there is nothing to drain, count-of-survivors does **not**
+  predicate necessarily differs, there is nothing to exclude, count-of-survivors does **not**
   apply, and the residual gap is that routing for the target key stays unproven. State that
   gap in the specification and route the control through every routing-relevant component.
 
